@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 import time
 import uuid
 from typing import Any, Dict, List
@@ -39,7 +40,7 @@ class PolicyChangeService:
         now = time.time()
         item = {
             "id": f"pcr_{uuid.uuid4().hex[:12]}", "workspace_id": workspace_id,
-            "profile": profile, "bundle_id": bundle_id, "requested_by": requested_by,
+            "profile": profile, "bundle_id": bundle_id, "requested_by": requested_by.lower(),
             "approval_group": approval_group, "status": "PENDING", "diff": diff,
             "created_at": now, "updated_at": now, "activated_at": None,
         }
@@ -52,8 +53,16 @@ class PolicyChangeService:
             return None
         item["votes"] = store.policy_change_votes(request_id)
         group = approval_groups.get(item["workspace_id"], item["approval_group"])
-        item["required_approvals"] = int(group.get("min_approvals", 1)) if group else 1
-        item["approval_count"] = sum(1 for v in item["votes"] if v["decision"] == "APPROVE")
+        base_required = int(group.get("min_approvals", 1)) if group else 1
+        four_eyes = os.getenv("TRUSTKERNEL_POLICY_FOUR_EYES", "1") == "1"
+        # Four-eyes means at least one person other than the requester must approve.
+        item["four_eyes"] = four_eyes
+        item["required_approvals"] = max(base_required, 1)
+        eligible_approvals = [
+            v for v in item["votes"]
+            if v["decision"] == "APPROVE" and (not four_eyes or v["actor_email"].lower() != item["requested_by"].lower())
+        ]
+        item["approval_count"] = len({v["actor_email"].lower() for v in eligible_approvals})
         return item
 
     def list(self, workspace_id: str) -> List[Dict[str, Any]]:
@@ -73,11 +82,15 @@ class PolicyChangeService:
         normalized = decision.upper()
         if normalized not in {"APPROVE", "REJECT"}:
             raise ValueError("Decision must be APPROVE or REJECT")
+        if normalized == "APPROVE" and item.get("four_eyes") and actor == item["requested_by"].lower():
+            raise PermissionError("Four-eyes policy forbids self-approval of a proposed policy change")
+
         now = time.time()
         store.upsert_policy_change_vote(request_id, actor, normalized, now)
         if normalized == "REJECT":
             store.update_policy_change(request_id, status="REJECTED", updated_at=now)
             return self.get(request_id) or {}
+
         refreshed = self.get(request_id) or {}
         if refreshed.get("approval_count", 0) >= refreshed.get("required_approvals", 1):
             activate_policy_bundle(item["workspace_id"], item["profile"], item["bundle_id"], activated_by=f"approved:{actor}")
