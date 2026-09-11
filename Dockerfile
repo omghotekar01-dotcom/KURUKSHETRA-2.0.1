@@ -14,12 +14,16 @@ COPY backend /app/backend
 COPY frontend /app/frontend
 COPY docs /app/docs
 
-RUN mkdir -p /var/lib/trustkernel
+RUN groupadd --system trustkernel \
+    && useradd --system --gid trustkernel --home-dir /app --shell /usr/sbin/nologin trustkernel \
+    && mkdir -p /var/lib/trustkernel \
+    && chown -R trustkernel:trustkernel /var/lib/trustkernel /app
 
+USER trustkernel:trustkernel
 WORKDIR /app/backend
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)" || exit 1
 
-CMD ["python", "-m", "uvicorn", "app.bootstrap:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "app.bootstrap:app", "--host", "0.0.0.0", "--port", "8000", "--no-server-header"]
