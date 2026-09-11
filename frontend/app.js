@@ -7,13 +7,15 @@ async function loadScenarios(){
 }
 
 async function loadSystem(){
-  const [status, agents, policy, audit, ready, history] = await Promise.all([
+  const [status, agents, policy, audit, ready, history, capabilities, oidc] = await Promise.all([
     fetch('/api/status').then(r=>r.json()),
     fetch('/api/agents').then(r=>r.json()),
     fetch('/api/policies/enterprise-default').then(r=>r.json()),
     fetch('/api/audit/verify').then(r=>r.json()),
     fetch('/ready').then(r=>r.json()),
     fetch('/api/policy-bundles/enterprise-default').then(r=>r.json()),
+    fetch('/api/v13/capabilities').then(r=>r.json()),
+    fetch('/api/v13/identity/oidc/status').then(r=>r.json()),
   ]);
   $('agentsCount').textContent = status.agents;
   $('readinessPill').textContent = ready.ready ? 'READY' : 'DEGRADED';
@@ -33,6 +35,23 @@ async function loadSystem(){
     <div class="policy-row"><span>Protected Git branches</span><b>${(policy.github?.protected_branches || []).join(', ')}</b></div>
     <div class="policy-row"><span>MCP provenance</span><b>${policy.mcp?.require_verified_provenance ? 'REQUIRED' : 'OPTIONAL'}</b></div>
     <div class="policy-row"><span>Policy integrity</span><b>v${status.policy_version} · ${String(status.policy_sha256 || '').slice(0,10)}…</b></div>`;
+
+  $('identityPill').textContent = oidc.enabled ? 'OIDC ACTIVE' : 'LOCAL + WORKLOAD IAM';
+  $('identitySummary').innerHTML = `
+    <div class="policy-row"><span>Human identity</span><b>${oidc.enabled ? 'OIDC / JWT' : 'SIGNED SESSION'}</b></div>
+    <div class="policy-row"><span>OIDC issuer</span><b>${oidc.issuer || 'NOT CONFIGURED'}</b></div>
+    <div class="policy-row"><span>JWT algorithms</span><b>${(oidc.allowed_algorithms || []).join(', ')}</b></div>
+    <div class="policy-row"><span>Workload identity</span><b>Ed25519</b></div>
+    <div class="policy-row"><span>Agent replay defense</span><b>NONCE + TIMESTAMP</b></div>
+    <div class="policy-row"><span>Policy self-approval</span><b>BLOCKED</b></div>`;
+
+  $('capabilitySummary').innerHTML = `
+    <div class="policy-row"><span>Version</span><b>${capabilities.version}</b></div>
+    <div class="policy-row"><span>Governance</span><b>${(capabilities.governance || []).length} controls</b></div>
+    <div class="policy-row"><span>Framework adapters</span><b>${(capabilities.integrations || []).join(', ')}</b></div>
+    <div class="policy-row"><span>Telemetry</span><b>OTLP / HTTP</b></div>
+    <div class="policy-row"><span>Benchmark model</span><b>SECURITY + UTILITY</b></div>
+    <div class="policy-row"><span>MCP trust changes</span><b>FOUR-EYES</b></div>`;
 }
 
 function decisionClass(d){
@@ -89,12 +108,12 @@ async function resolveApproval(resolution){
 }
 
 async function runJudgeMode(){
-  $('resultTitle').textContent = 'Running Judge Mode…';
-  const demo = await fetch('/api/judge-demo/run',{method:'POST'}).then(r=>r.json());
+  $('resultTitle').textContent = 'Running TrustKernel v1.3 Judge Mode…';
+  const demo = await fetch('/api/v13/judge-demo/run',{method:'POST'}).then(r=>r.json());
   $('findings').innerHTML = demo.sequence.map(item=>`<div class="finding ${item.decision==='BLOCK'?'critical':''}"><b>${item.decision.replaceAll('_',' ')} · ${item.title}</b><p>Risk ${item.risk_score}/100 · Audit ${item.audit_id}${item.repairs?` · ${item.repairs} repair`:''}</p></div>`).join('');
-  $('resultTitle').textContent = 'Judge Mode complete';
+  $('resultTitle').textContent = `TrustKernel ${demo.version} Judge Mode complete`;
   $('resultSummary').textContent = demo.message;
-  $('decisionBadge').textContent = '5 LIVE SCENARIOS';
+  $('decisionBadge').textContent = `${demo.sequence.length} LIVE SCENARIOS`;
   $('decisionBadge').className = 'decision rewrite';
   $('auditId').textContent = demo.audit_chain.valid ? `Audit chain verified · ${demo.audit_chain.entries} entries` : 'Audit chain verification failed';
   $('repairBox').style.display='none';

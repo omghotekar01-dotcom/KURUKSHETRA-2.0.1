@@ -24,7 +24,7 @@ class WorkloadIdentityService:
     def register_public_key(self, workspace_id: str, agent_id: str, public_key_pem: str) -> Dict[str, Any]:
         key = serialization.load_pem_public_key(public_key_pem.encode("utf-8"))
         if not isinstance(key, Ed25519PublicKey):
-            raise ValueError("Only Ed25519 workload identity keys are supported in v1.2")
+            raise ValueError("Only Ed25519 workload identity keys are supported")
         raw = key.public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
         fingerprint = hashlib.sha256(raw).hexdigest()
         existing = next((k for k in store.workload_keys(workspace_id, agent_id) if k["fingerprint"] == fingerprint), None)
@@ -37,6 +37,34 @@ class WorkloadIdentityService:
         }
         store.create_workload_key(item)
         return item
+
+    def rotate_public_key(self, workspace_id: str, agent_id: str, public_key_pem: str) -> Dict[str, Any]:
+        """Register a replacement key and revoke all older active keys.
+
+        This gives production deployments a deterministic one-active-key posture
+        without weakening the offline-first storage model.
+        """
+        replacement = self.register_public_key(workspace_id, agent_id, public_key_pem)
+        revoked = []
+        for item in store.workload_keys(workspace_id, agent_id):
+            if item["id"] == replacement["id"] or item.get("status") != "ACTIVE":
+                continue
+            if self.revoke(workspace_id, item["id"]):
+                revoked.append(item["id"])
+        return {"active": replacement, "revoked_key_ids": revoked, "posture": self.posture(workspace_id, agent_id)}
+
+    def posture(self, workspace_id: str, agent_id: str) -> Dict[str, Any]:
+        keys = store.workload_keys(workspace_id, agent_id)
+        active = [item for item in keys if item.get("status") == "ACTIVE"]
+        return {
+            "workspace_id": workspace_id,
+            "agent_id": agent_id,
+            "algorithm": self.algorithm,
+            "active_keys": len(active),
+            "total_keys": len(keys),
+            "single_active_key": len(active) == 1,
+            "fingerprints": [item["fingerprint"] for item in active],
+        }
 
     def generate_demo_keypair(self, workspace_id: str, agent_id: str) -> Dict[str, Any]:
         private = Ed25519PrivateKey.generate()
