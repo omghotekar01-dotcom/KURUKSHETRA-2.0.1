@@ -1,0 +1,42 @@
+name: enterprise-default
+version: 3
+identity:
+  require_registered_agent: true
+  enforce_tool_allowlist: true
+  enforce_operation_allowlist: true
+  enforce_workspace_scope: true
+egress:
+  block_secret_to_untrusted: true
+  approval_for_untrusted_influence: true
+payments:
+  default_auto_limit: 50000
+database:
+  destructive_operations: [drop, truncate, delete, alter]
+  repair_to_read_only: true
+github:
+  protected_branches: [main, master, production]
+  require_approval_for_protected_push: true
+memory:
+  block_untrusted_write: true
+  require_provenance_for_external_memory: true
+inter_agent:
+  require_registered_recipient: true
+  block_spoofed_sender: true
+  require_valid_signature: true
+  require_fresh_nonce: true
+workflow:
+  max_autonomous_fanout: 10
+  hard_block_fanout: 50
+provenance:
+  require_verified_external_tools: true
+  block_manifest_hash_mismatch: true
+mcp:
+  require_verified_provenance: true
+  require_registered_server: true
+  require_scope_subset: true
+  block_token_passthrough: true
+  require_audience_bound_token: true
+  block_unverified_side_effects: true
+risk:
+  approval_threshold: 70
+  block_threshold: 90
