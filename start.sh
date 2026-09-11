@@ -12,9 +12,13 @@ fi
 python -m pip install -r requirements.txt
 
 echo ""
+echo "[TrustKernel] Running environment diagnostics..."
+python diagnostics.py
+
+echo ""
 echo "[TrustKernel] Running judge preflight..."
 python judge_check.py
 
 echo ""
-echo "[TrustKernel] Preflight passed. Starting http://127.0.0.1:8000"
+echo "[TrustKernel] Diagnostics and preflight passed. Starting http://127.0.0.1:8000"
 exec python -m uvicorn app.bootstrap:app --host 127.0.0.1 --port 8000
