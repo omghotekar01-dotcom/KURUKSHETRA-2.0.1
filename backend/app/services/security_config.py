@@ -18,6 +18,14 @@ def security_posture() -> Dict[str, Any]:
     production = env == "production"
     errors = []
     warnings = []
+
+    oidc_configured = bool(
+        os.getenv("TRUSTKERNEL_OIDC_ISSUER")
+        and os.getenv("TRUSTKERNEL_OIDC_AUDIENCE")
+        and (os.getenv("TRUSTKERNEL_OIDC_JWKS_URL") or os.getenv("TRUSTKERNEL_OIDC_JWKS_JSON"))
+    )
+    four_eyes = os.getenv("TRUSTKERNEL_POLICY_FOUR_EYES", "1") == "1"
+
     if production and weak:
         errors.append("Production profile cannot use development signing keys")
     elif weak:
@@ -28,12 +36,24 @@ def security_posture() -> Dict[str, Any]:
         (errors if production else warnings).append("Legacy actor-header compatibility is enabled")
     if os.getenv("TRUSTKERNEL_REQUIRE_POLICY_APPROVAL", "0") != "1":
         (errors if production else warnings).append("Direct policy activation remains enabled")
+    if not four_eyes:
+        (errors if production else warnings).append("Four-eyes policy governance is disabled")
     if os.getenv("TRUSTKERNEL_CORS_ORIGINS", "*") == "*":
         (errors if production else warnings).append("CORS allows all origins")
+    if not oidc_configured:
+        warnings.append("External OIDC identity provider is not configured; local signed sessions remain active")
+
     return {
         "environment": env,
         "production_ready": not errors,
         "errors": errors,
         "warnings": warnings,
         "weak_secret_variables": weak,
+        "controls": {
+            "api_key_required": os.getenv("TRUSTKERNEL_REQUIRE_API_KEY", "0") == "1",
+            "legacy_actor_header_disabled": os.getenv("TRUSTKERNEL_ALLOW_LEGACY_ACTOR_HEADER", "1") != "1",
+            "policy_change_approval_required": os.getenv("TRUSTKERNEL_REQUIRE_POLICY_APPROVAL", "0") == "1",
+            "policy_four_eyes": four_eyes,
+            "external_oidc_configured": oidc_configured,
+        },
     }
