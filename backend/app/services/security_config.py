@@ -6,6 +6,7 @@ DEFAULT_SECRETS = {
     "TRUSTKERNEL_SESSION_SIGNING_KEY": "trustkernel-dev-session-key",
     "TRUSTKERNEL_A2A_SIGNING_KEY": "trustkernel-dev-a2a-key",
     "TRUSTKERNEL_POLICY_SIGNING_KEY": "trustkernel-dev-policy-signing-key",
+    "TRUSTKERNEL_EVIDENCE_SIGNING_KEY": "trustkernel-dev-policy-signing-key",
 }
 
 
@@ -22,9 +23,10 @@ def security_posture() -> Dict[str, Any]:
     oidc_configured = bool(
         os.getenv("TRUSTKERNEL_OIDC_ISSUER")
         and os.getenv("TRUSTKERNEL_OIDC_AUDIENCE")
-        and (os.getenv("TRUSTKERNEL_OIDC_JWKS_URL") or os.getenv("TRUSTKERNEL_OIDC_JWKS_JSON"))
     )
+    oidc_https = os.getenv("TRUSTKERNEL_OIDC_REQUIRE_HTTPS", "1") == "1"
     four_eyes = os.getenv("TRUSTKERNEL_POLICY_FOUR_EYES", "1") == "1"
+    evidence_key_explicit = bool(os.getenv("TRUSTKERNEL_EVIDENCE_SIGNING_KEY"))
 
     if production and weak:
         errors.append("Production profile cannot use development signing keys")
@@ -42,6 +44,10 @@ def security_posture() -> Dict[str, Any]:
         (errors if production else warnings).append("CORS allows all origins")
     if not oidc_configured:
         warnings.append("External OIDC identity provider is not configured; local signed sessions remain active")
+    if production and oidc_configured and not oidc_https:
+        errors.append("Production OIDC configuration must enforce HTTPS discovery/JWKS endpoints")
+    if production and not evidence_key_explicit:
+        errors.append("Production governance evidence requires a dedicated signing key")
 
     return {
         "environment": env,
@@ -55,5 +61,7 @@ def security_posture() -> Dict[str, Any]:
             "policy_change_approval_required": os.getenv("TRUSTKERNEL_REQUIRE_POLICY_APPROVAL", "0") == "1",
             "policy_four_eyes": four_eyes,
             "external_oidc_configured": oidc_configured,
+            "oidc_https_required": oidc_https,
+            "governance_evidence_signing_configured": evidence_key_explicit,
         },
     }
