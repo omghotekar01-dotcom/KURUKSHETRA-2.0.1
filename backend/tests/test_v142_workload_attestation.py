@@ -19,8 +19,8 @@ def test_spiffe_attestation_metadata_and_digest_are_stable():
         evidence_ref="workload-api:x509-svid",
     )
     item.validate(now=200)
-    first = item.public_metadata()
-    second = item.public_metadata()
+    first = item.public_metadata(now=200)
+    second = item.public_metadata(now=200)
     assert first["sha256"] == second["sha256"]
     assert len(first["sha256"]) == 64
 
