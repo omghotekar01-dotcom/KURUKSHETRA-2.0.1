@@ -14,20 +14,29 @@ router = APIRouter(prefix="/api/v14", tags=["TrustKernel v1.4"])
 @router.get("/capabilities")
 def capabilities():
     return {
-        "version": "1.4.0",
+        "version": "1.4.2",
         "identity": {
             "oidc_discovery": True,
             "exact_issuer_validation": True,
             "audience_validation": True,
             "jwks_rotation_refresh": True,
             "configurable_role_claim_mapping": True,
+            "workload_attestation_metadata": True,
+            "external_signer_adapter": True,
+            "spiffe_style_identity_metadata": True,
+            "kms_hsm_private_key_custody": True,
         },
         "governance": {
             "four_eyes_policy_changes": True,
             "four_eyes_mcp_registry_changes": True,
             "portable_signed_evidence": True,
         },
-        "deployment": {"offline_sqlite_mode": True, "container_non_root": True},
+        "deployment": {
+            "offline_sqlite_mode": True,
+            "postgresql_mode": True,
+            "schema_migrations": True,
+            "container_non_root": True,
+        },
     }
 
 
