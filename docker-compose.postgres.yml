@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: trustkernel
+      POSTGRES_USER: trustkernel
+      POSTGRES_PASSWORD: ${TRUSTKERNEL_POSTGRES_PASSWORD:-trustkernel-dev-only}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trustkernel -d trustkernel"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - trustkernel-postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  trustkernel:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      TRUSTKERNEL_ENV: ${TRUSTKERNEL_ENV:-development}
+      TRUSTKERNEL_REQUIRE_API_KEY: ${TRUSTKERNEL_REQUIRE_API_KEY:-0}
+      TRUSTKERNEL_ALLOW_LEGACY_ACTOR_HEADER: ${TRUSTKERNEL_ALLOW_LEGACY_ACTOR_HEADER:-1}
+      TRUSTKERNEL_REQUIRE_POLICY_APPROVAL: ${TRUSTKERNEL_REQUIRE_POLICY_APPROVAL:-0}
+      TRUSTKERNEL_POLICY_FOUR_EYES: ${TRUSTKERNEL_POLICY_FOUR_EYES:-1}
+      TRUSTKERNEL_CORS_ORIGINS: ${TRUSTKERNEL_CORS_ORIGINS:-*}
+      TRUSTKERNEL_SESSION_SIGNING_KEY: ${TRUSTKERNEL_SESSION_SIGNING_KEY:-trustkernel-dev-session-key}
+      TRUSTKERNEL_A2A_SIGNING_KEY: ${TRUSTKERNEL_A2A_SIGNING_KEY:-trustkernel-dev-a2a-key}
+      TRUSTKERNEL_POLICY_SIGNING_KEY: ${TRUSTKERNEL_POLICY_SIGNING_KEY:-trustkernel-dev-policy-signing-key}
+      TRUSTKERNEL_EVIDENCE_SIGNING_KEY: ${TRUSTKERNEL_EVIDENCE_SIGNING_KEY:-trustkernel-dev-evidence-key}
+      TRUSTKERNEL_DB_BACKEND: postgres
+      TRUSTKERNEL_DATABASE_URL: postgresql://trustkernel:${TRUSTKERNEL_POSTGRES_PASSWORD:-trustkernel-dev-only}@postgres:5432/trustkernel
+    restart: unless-stopped
+
+volumes:
+  trustkernel-postgres:
