@@ -1,0 +1,22 @@
+services:
+  trustkernel:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      TRUSTKERNEL_ENV: ${TRUSTKERNEL_ENV:-development}
+      TRUSTKERNEL_REQUIRE_API_KEY: ${TRUSTKERNEL_REQUIRE_API_KEY:-0}
+      TRUSTKERNEL_ALLOW_LEGACY_ACTOR_HEADER: ${TRUSTKERNEL_ALLOW_LEGACY_ACTOR_HEADER:-1}
+      TRUSTKERNEL_REQUIRE_POLICY_APPROVAL: ${TRUSTKERNEL_REQUIRE_POLICY_APPROVAL:-0}
+      TRUSTKERNEL_POLICY_FOUR_EYES: ${TRUSTKERNEL_POLICY_FOUR_EYES:-1}
+      TRUSTKERNEL_CORS_ORIGINS: ${TRUSTKERNEL_CORS_ORIGINS:-*}
+      TRUSTKERNEL_SESSION_SIGNING_KEY: ${TRUSTKERNEL_SESSION_SIGNING_KEY:-trustkernel-dev-session-key}
+      TRUSTKERNEL_A2A_SIGNING_KEY: ${TRUSTKERNEL_A2A_SIGNING_KEY:-trustkernel-dev-a2a-key}
+      TRUSTKERNEL_POLICY_SIGNING_KEY: ${TRUSTKERNEL_POLICY_SIGNING_KEY:-trustkernel-dev-policy-signing-key}
+      TRUSTKERNEL_DB_PATH: /var/lib/trustkernel/trustkernel.db
+    volumes:
+      - trustkernel-data:/var/lib/trustkernel
+    restart: unless-stopped
+
+volumes:
+  trustkernel-data:
