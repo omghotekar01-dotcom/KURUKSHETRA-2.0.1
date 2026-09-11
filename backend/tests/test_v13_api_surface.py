@@ -8,10 +8,15 @@ from app.bootstrap import app
 client = TestClient(app)
 
 
+def _version_tuple(value: str):
+    return tuple(int(part) for part in value.split(".")[:3])
+
+
 def test_v13_bootstrap_and_capabilities():
     health = client.get("/health")
     assert health.status_code == 200
-    assert health.json()["version"] == "1.3.0"
+    # The v1.3 compatibility surface must survive later bootstrap versions.
+    assert _version_tuple(health.json()["version"]) >= (1, 3, 0)
 
     capabilities = client.get("/api/v13/capabilities")
     assert capabilities.status_code == 200
