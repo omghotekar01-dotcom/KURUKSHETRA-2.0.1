@@ -1,9 +1,9 @@
 import json
-import os
 import time
 
 import jwt
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ed25519, rsa
 from jwt.algorithms import RSAAlgorithm
 
 from app.services.approval_groups import approval_groups
@@ -11,6 +11,7 @@ from app.services.members import members
 from app.services.oidc import OIDCVerifier
 from app.services.policies import load_policy, publish_policy_document
 from app.services.policy_changes import policy_changes
+from app.services.workload_identity import workload_identities
 from app.services.workspaces import workspaces
 
 
@@ -79,3 +80,27 @@ def test_policy_change_requires_distinct_approver(monkeypatch):
     approved = policy_changes.vote(request["id"], approver, "APPROVE")
     assert approved["status"] == "ACTIVATED"
     assert approved["approval_count"] >= 1
+
+
+def test_workload_key_rotation_leaves_one_active_key():
+    workspace = workspaces.create("workload-rotation-test", owner_email="owner2@example.test")
+    workspace_id = workspace["id"]
+    agent_id = "payments-agent"
+
+    old_private = ed25519.Ed25519PrivateKey.generate()
+    old_public = old_private.public_key().public_bytes(
+        serialization.Encoding.PEM,
+        serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("utf-8")
+    old = workload_identities.register_public_key(workspace_id, agent_id, old_public)
+
+    new_private = ed25519.Ed25519PrivateKey.generate()
+    new_public = new_private.public_key().public_bytes(
+        serialization.Encoding.PEM,
+        serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("utf-8")
+    rotated = workload_identities.rotate_public_key(workspace_id, agent_id, new_public)
+
+    assert old["id"] in rotated["revoked_key_ids"]
+    assert rotated["posture"]["active_keys"] == 1
+    assert rotated["posture"]["single_active_key"] is True
