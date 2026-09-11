@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TrustKernel — AI Agent Security Control Plane</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">TK</span><div><strong>TrustKernel</strong><small>AI Agent Security Control Plane</small></div></div>
+      <nav>
+        <button class="nav active">Command Center</button><button class="nav">Action Graph</button><button class="nav">Policy Studio</button><button class="nav">Approvals</button><button class="nav">Audit Ledger</button><button class="nav">Incidents</button><button class="nav">Trust Registry</button>
+      </nav>
+      <div class="status-card"><span class="dot"></span><div><b>Kernel Active</b><small>All agent actions intercepted</small></div></div>
+    </aside>
+    <main>
+      <header><div><p class="eyebrow">TRUSTKERNEL v1.2 · IDENTITY + GOVERNANCE CONTROL PLANE</p><h1>Runtime authorization for autonomous AI agents.</h1><p class="sub">Identity, least privilege, provenance-aware data flow, policy-as-code, safe plan repair, human approvals, and tamper-evident evidence before an agent touches real tools.</p></div><div class="shield">LIVE<br><span>ENFORCEMENT</span></div></header>
+      <section class="metrics">
+        <article><span>Protected agents</span><b id="agentsCount">—</b><small>Least-privilege identities</small></article><article><span>Latest risk</span><b id="riskMetric">—</b><small id="riskBand">No evaluation yet</small></article><article><span>Decision</span><b id="decisionMetric">READY</b><small>Policy + graph + taint</small></article><article><span>Kernel latency</span><b id="latencyMetric">—</b><small>Deterministic enforcement path</small></article><article><span>Open incidents</span><b id="incidentMetric">—</b><small>Persistent investigation queue</small></article>
+      </section>
+      <section class="grid">
+        <article class="panel scenarios"><div class="panel-head"><div><p class="eyebrow">ATTACK LAB</p><h2>Judge Demo Scenarios</h2></div><button class="judge-button" onclick="runJudgeMode()">RUN JUDGE MODE</button></div><div id="scenarioList" class="scenario-list"></div></article>
+        <article class="panel result-panel"><div class="panel-head"><div><p class="eyebrow">RUNTIME VERDICT</p><h2 id="resultTitle">Awaiting scenario</h2></div><span id="decisionBadge" class="decision neutral">READY</span></div><div class="risk-wrap"><div class="risk-ring"><span id="riskScore">0</span><small>/100</small></div><div><b id="resultSummary">Select a scenario to run it through TrustKernel.</b><p id="auditId">Every decision is chained into the tamper-evident audit ledger.</p></div></div><div id="approvalControls" class="approval-controls" style="display:none"><button class="approve" onclick="resolveApproval('APPROVE')">Approve simulated action</button><button class="reject" onclick="resolveApproval('REJECT')">Reject</button></div><div id="findings" class="findings"><div class="empty">No findings yet.</div></div><div id="repairBox" class="repair-box" style="display:none"></div></article>
+      </section>
+      <section class="grid secondary-grid"><article class="panel"><div class="panel-head"><div><p class="eyebrow">AGENT IAM</p><h2>Protected Agent Identities</h2></div><span class="pill">least privilege</span></div><div id="agentList" class="agent-list"><div class="empty">Loading agents…</div></div></article><article class="panel"><div class="panel-head"><div><p class="eyebrow">POLICY-AS-CODE</p><h2>Enterprise Default</h2></div><span id="auditIntegrity" class="pill">checking ledger…</span></div><div id="policySummary" class="policy-summary"><div class="empty">Loading controls…</div></div></article></section>
+      <section class="grid secondary-grid"><article class="panel"><div class="panel-head"><div><p class="eyebrow">OPERATIONS</p><h2>Runtime Readiness</h2></div><span id="readinessPill" class="pill">checking…</span></div><div id="readinessSummary" class="policy-summary"><div class="empty">Loading readiness checks…</div></div></article><article class="panel"><div class="panel-head"><div><p class="eyebrow">POLICY LIFECYCLE</p><h2>Signed Policy Bundles</h2></div><span class="pill">immutable history</span></div><div id="policyHistory" class="policy-summary"><div class="empty">Loading policy history…</div></div></article></section>
+      <section class="panel graph-panel"><div class="panel-head"><div><p class="eyebrow">CAUSAL ACTION GRAPH</p><h2>What the agent is actually trying to do</h2></div><span id="taintBadge" class="pill">No taint</span></div><div id="graph" class="graph"><div class="empty">Action nodes will appear here.</div></div></section>
+      <section class="panel architecture"><div class="panel-head"><div><p class="eyebrow">TRUSTKERNEL PIPELINE</p><h2>Defense in depth, not another prompt filter</h2></div></div><div class="pipeline"><span>Member Session</span><i>→</i><span>Workload Identity</span><i>→</i><span>Intent</span><i>→</i><span>Action Graph</span><i>→</i><span>Provenance</span><i>→</i><span>Policy Integrity</span><i>→</i><span>Repair / Approval</span><i>→</i><span>Gate</span><i>→</i><span>Evidence</span></div></section>
+    </main>
+  </div>
+<script src="/static/app.js"></script>
+</body>
+</html>
