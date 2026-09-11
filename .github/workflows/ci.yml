@@ -39,3 +39,23 @@ jobs:
           assert result["audit_chain"]["valid"] is True
           print("Judge Mode regression gate passed")
           PY
+      - name: Validate production deployment gate
+        working-directory: backend
+        env:
+          TRUSTKERNEL_ENV: production
+          TRUSTKERNEL_REQUIRE_API_KEY: '1'
+          TRUSTKERNEL_ALLOW_LEGACY_ACTOR_HEADER: '0'
+          TRUSTKERNEL_REQUIRE_POLICY_APPROVAL: '1'
+          TRUSTKERNEL_POLICY_FOUR_EYES: '1'
+          TRUSTKERNEL_CORS_ORIGINS: https://console.trustkernel.example
+          TRUSTKERNEL_SESSION_SIGNING_KEY: ssssssssssssssssssssssssssssssssssssssssssssssss
+          TRUSTKERNEL_A2A_SIGNING_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          TRUSTKERNEL_POLICY_SIGNING_KEY: pppppppppppppppppppppppppppppppppppppppppppppppp
+          TRUSTKERNEL_EVIDENCE_SIGNING_KEY: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+          TRUSTKERNEL_OIDC_ISSUER: https://idp.example.com
+          TRUSTKERNEL_OIDC_AUDIENCE: trustkernel-prod
+          TRUSTKERNEL_OIDC_REQUIRE_HTTPS: '1'
+          TRUSTKERNEL_DB_BACKEND: postgres
+          TRUSTKERNEL_DATABASE_URL: postgresql://trustkernel:ci-only@postgres:5432/trustkernel
+          OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+        run: python deployment_check.py > /tmp/trustkernel-production-readiness.json

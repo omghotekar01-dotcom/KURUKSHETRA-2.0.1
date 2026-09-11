@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: trustkernel
+      POSTGRES_USER: trustkernel
+      POSTGRES_PASSWORD: ${TRUSTKERNEL_POSTGRES_PASSWORD:?set TRUSTKERNEL_POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trustkernel -d trustkernel"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - trustkernel-postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  trustkernel:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      TRUSTKERNEL_ENV: production
+      TRUSTKERNEL_REQUIRE_API_KEY: "1"
+      TRUSTKERNEL_ALLOW_LEGACY_ACTOR_HEADER: "0"
+      TRUSTKERNEL_REQUIRE_POLICY_APPROVAL: "1"
+      TRUSTKERNEL_POLICY_FOUR_EYES: "1"
+      TRUSTKERNEL_CORS_ORIGINS: ${TRUSTKERNEL_CORS_ORIGINS:?set TRUSTKERNEL_CORS_ORIGINS}
+      TRUSTKERNEL_SESSION_SIGNING_KEY: ${TRUSTKERNEL_SESSION_SIGNING_KEY:?set TRUSTKERNEL_SESSION_SIGNING_KEY}
+      TRUSTKERNEL_A2A_SIGNING_KEY: ${TRUSTKERNEL_A2A_SIGNING_KEY:?set TRUSTKERNEL_A2A_SIGNING_KEY}
+      TRUSTKERNEL_POLICY_SIGNING_KEY: ${TRUSTKERNEL_POLICY_SIGNING_KEY:?set TRUSTKERNEL_POLICY_SIGNING_KEY}
+      TRUSTKERNEL_EVIDENCE_SIGNING_KEY: ${TRUSTKERNEL_EVIDENCE_SIGNING_KEY:?set TRUSTKERNEL_EVIDENCE_SIGNING_KEY}
+      TRUSTKERNEL_EVIDENCE_KEY_ID: ${TRUSTKERNEL_EVIDENCE_KEY_ID:-prod-hmac-sha256}
+      TRUSTKERNEL_OIDC_ISSUER: ${TRUSTKERNEL_OIDC_ISSUER:?set TRUSTKERNEL_OIDC_ISSUER}
+      TRUSTKERNEL_OIDC_AUDIENCE: ${TRUSTKERNEL_OIDC_AUDIENCE:?set TRUSTKERNEL_OIDC_AUDIENCE}
+      TRUSTKERNEL_OIDC_REQUIRE_HTTPS: "1"
+      TRUSTKERNEL_DB_BACKEND: postgres
+      TRUSTKERNEL_DATABASE_URL: postgresql://trustkernel:${TRUSTKERNEL_POSTGRES_PASSWORD}@postgres:5432/trustkernel
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    restart: unless-stopped
+
+volumes:
+  trustkernel-postgres:
