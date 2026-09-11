@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "trustkernel-sdk"
+version = "1.4.5"
+description = "Framework-agnostic Python SDK and guards for the TrustKernel AI-agent security runtime."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "TrustKernel" }]
+dependencies = ["httpx>=0.27,<1"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Repository = "https://github.com/omghotekar01-dotcom/KURUKSHETRA-2.0.1"
+
+[tool.hatch.build.targets.wheel]
+packages = ["trustkernel"]
