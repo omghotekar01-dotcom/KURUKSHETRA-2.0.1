@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Header, HTTPException
 
+from .engines.kernel import evaluate_plan
 from .main import _principal, _workspace_match
+from .scenarios import SCENARIOS
+from .services.audit import ledger
 from .services.mcp_governance import mcp_governance
 from .services.oidc import oidc
 from .services.otlp import otlp
@@ -148,3 +151,37 @@ def send_otlp(
     endpoint = str(body.get("endpoint", "")).strip() or None
     limit = max(1, min(int(body.get("limit", 500)), 2000))
     return otlp.send(workspace_id, endpoint=endpoint, limit=limit)
+
+
+@router.post("/judge-demo/run")
+def judge_demo_v13():
+    ids = [
+        "prompt-injection",
+        "mcp-poisoned-tool",
+        "mcp-token-passthrough",
+        "unsafe-sql",
+        "high-value-payment",
+        "safe-analytics",
+    ]
+    sequence = []
+    for scenario_id in ids:
+        spec = SCENARIOS[scenario_id]
+        result = evaluate_plan(spec["request"]())
+        sequence.append({
+            "scenario_id": scenario_id,
+            "title": spec["title"],
+            "decision": result.decision.value,
+            "risk_score": result.risk_score,
+            "audit_id": result.audit_id,
+            "incident_id": result.metrics.get("incident_id"),
+            "repairs": result.metrics.get("repairs_proposed", 0),
+            "approval_required": result.approval_required,
+        })
+    return {
+        "mode": "TRUSTKERNEL_V1_3_JUDGE_DEMO",
+        "version": "1.3.0",
+        "sequence": sequence,
+        "audit_chain": ledger.verify(),
+        "capabilities": capabilities(),
+        "message": "Six deterministic scenarios executed through the live TrustKernel v1.3 runtime enforcement path.",
+    }
