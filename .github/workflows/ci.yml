@@ -30,15 +30,7 @@ jobs:
         working-directory: backend
         env:
           TRUSTKERNEL_ENV: development
-        run: |
-          python - <<'PY'
-          from app.v13_api import judge_demo_v13
-          result = judge_demo_v13()
-          assert result["mode"] == "TRUSTKERNEL_V1_3_JUDGE_DEMO"
-          assert len(result["sequence"]) == 6
-          assert result["audit_chain"]["valid"] is True
-          print("Judge Mode regression gate passed")
-          PY
+        run: python judge_check.py > /tmp/trustkernel-judge-preflight.json
       - name: Validate production deployment gate
         working-directory: backend
         env:

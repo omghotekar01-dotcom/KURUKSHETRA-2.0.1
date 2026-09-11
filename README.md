@@ -1,76 +1,56 @@
 # TrustKernel
 
 **Runtime Security & Authorization Control Plane for Autonomous AI Agents**  
-Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.2
+Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.x
 
-TrustKernel sits on the execution path between an autonomous AI agent and its tools. It evaluates **identity, workspace scope, user intent, tool provenance, information-flow labels, policy, risk and consequences before execution**, then returns one of five deterministic outcomes:
+TrustKernel sits on the execution path between autonomous AI agents and their tools. It evaluates identity, workspace scope, intent, tool provenance, information-flow labels, policy, risk and consequences **before execution**, then returns one of five deterministic outcomes:
 
 `ALLOW · ALLOW_WITH_LOG · REWRITE · REQUIRE_APPROVAL · BLOCK`
 
-The product is intentionally not positioned as another prompt filter. Its job is runtime authorization, least privilege, safe plan repair, incident evidence, and operational control for agentic systems.
+It is not positioned as a prompt filter. TrustKernel is a runtime authorization, least-privilege, governance, incident-evidence and observability layer for agentic systems.
 
-## v1.2 startup-MVP capabilities
+## Current capabilities
 
-- Framework-agnostic enforcement gateway
-- Workspace/tenant onboarding
-- Hashed API keys with **rotation + revocation**
-- Workspace members + RBAC capabilities
-- Approval groups for finance/security decisions
-- Workspace-scoped agent identities and cross-tenant blocking
-- Agent IAM / least-privilege tool and operation allowlists
-- YAML policy-as-code with **version + SHA-256 fingerprint + validation**
-- Immutable **signed policy bundles** with workspace activation + rollback
-- Dependency-aware causal action graph
-- Confidentiality/integrity provenance and taint propagation
-- MCP/tool/skill provenance and manifest-integrity controls
-- Workspace MCP trust registry with canonical resource URI, issuer, scope allowlist + manifest pinning
-- MCP token-passthrough + audience-binding controls
-- Durable-memory provenance / poisoning controls
-- Inter-agent sender + signature/authenticity checks
-- Nonce/timestamp **replay protection** for authenticated inter-agent messages
-- Deterministic Safe Plan Repair
-- Human approval queue with actor/role evidence
-- Persistent incident queue + graph/policy **Incident Investigator**
-- Hash-chained tamper-evident audit ledger
-- OpenTelemetry-style JSON security telemetry export + OTLP/HTTP JSON-shaped adapter
-- Workspace action rate limit + daily quota guard
-- Importable external benchmark case adapter
-- Python SDK with guarded execution helper
-- OWASP Agentic Top 10 Attack Lab
-- One-click Judge Mode
-- Dependency-light SQLite persistence for hackathon/offline reliability
+- OIDC/JWT human identity with issuer/audience/JWKS verification, discovery hardening, bounded clock skew and configurable claim/role mapping
+- Signed local sessions and workspace RBAC
+- Four-eyes governed policy changes with self-approval prevention
+- Ed25519 workload identity, key rotation, attestation metadata and external KMS/HSM/SPIFFE-style signer adapters
+- Replay-resistant inter-agent messaging
+- Governed MCP trust registry with signed change evidence, resource/scope/token-passthrough enforcement
+- Runtime action graph, taint/provenance tracking, policy evaluation, risk analysis and deterministic safe-plan repair
+- Persistent incidents, approvals, audit ledger and remediation evidence
+- SQLite offline mode plus PostgreSQL persistence abstraction and schema migrations
+- Distributed quota backend interface
+- OTLP JSON/HTTP telemetry plus optional native OpenTelemetry SDK exporter
+- Visual Policy Studio with structured diff/approval flow
+- Incident Causal Explorer with remediation timeline
+- Security + utility benchmark bridge with FPR/FNR and stronger AgentDojo-style dataset provenance/reporting
+- Packageable Python guard SDK with lightweight LangChain/LangGraph/AutoGen/MCP integration guards
+- Six-scenario Judge Mode
+- Non-root Docker runtime, production Compose profile and machine-checkable deployment-readiness gate
 
-## Current Attack Lab
+## One-command judge startup
 
-The synthetic local suite contains **19 scenarios** and covers **OWASP Agentic Top 10 ASI01–ASI10**.
+### Windows
 
-Examples:
-- Indirect prompt injection → secret egress → **BLOCK**
-- Destructive SQL generated for analytics → **REWRITE to read-only**
-- ₹95,000 payment over ₹50,000 agent limit → **REQUIRE APPROVAL**
-- Protected Git push → **REWRITE to feature branch**
-- Poisoned MCP tool / bad manifest provenance → **BLOCK**
-- MCP token passthrough / audience violation → **BLOCK**
-- Memory poisoning / unverified durable-memory provenance → **BLOCK**
-- Spoofed or invalidly signed inter-agent message → **BLOCK**
-- Excessive workflow fan-out → **REQUIRE APPROVAL**
+```powershell
+.\start.bat
+```
 
-## Quality gate
+### Linux / macOS
 
-Current local checkpoint:
-- **47/47 automated tests passing**
-- **190 deterministic regression evaluations** (19 scenarios × 10 iterations)
-- complete ASI01–ASI10 coverage in the bundled suite
+```bash
+chmod +x start.sh
+./start.sh
+```
 
-`benchmark-results-v1.2.json` stores the latest local benchmark output.
+Both launchers create/reuse the backend virtual environment, install dependencies, run the deterministic Judge preflight, and start the server only when that preflight passes.
 
-**Important:** these numbers validate the bundled deterministic regression cases; they are not a claim of 100% real-world security accuracy.
+Open `http://127.0.0.1:8000`.
 
-## Run on Windows
+For the exact hackathon rehearsal path, use [`docs/JUDGE_RUNBOOK.md`](docs/JUDGE_RUNBOOK.md).
 
-Double-click `start.bat`, then open `http://127.0.0.1:8000`.
-
-## Run manually
+## Manual development run
 
 ```bash
 cd backend
@@ -78,50 +58,50 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate
 # Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+python judge_check.py
+uvicorn app.bootstrap:app --reload
 ```
 
-## Test / benchmark
+## Validation gates
 
 ```bash
 cd backend
 pytest -q
 python benchmark.py
+python judge_check.py
 ```
 
-## Developer integration
+Production-profile configurations can additionally run:
 
-See `docs/ONBOARDING.md`, `examples/guarded_tool_execution.py`, and `sdk/trustkernel/`.
+```bash
+python deployment_check.py
+```
 
-The guarded SDK path evaluates the proposed tool call first. `BLOCK` and `REQUIRE_APPROVAL` do **not** invoke the real executor callback; a deterministic `REWRITE` exposes the repaired effective action to the callback.
+CI runs the full tests, deterministic regression benchmark, Judge Mode preflight and production deployment-readiness gate before stable checkpoints are merged to `main`.
+
+**Claims discipline:** bundled/synthetic/imported benchmark and Judge Mode results are deterministic regression/evaluation evidence. They are **not** production security accuracy, certification, universal exploit coverage, or a guarantee that every real-world attack will be blocked.
+
+## Branch workflow
+
+- `main` — stable, runnable, submission-ready checkpoints only
+- `trustkernel-dev` — active integration
+
+Changes are developed on `trustkernel-dev`, validated by CI, proposed to `main` by pull request, and merged only when the checkpoint is green.
 
 ## Architecture
 
-`Workspace/API Key → Agent Identity → Intent → Provenance/Action Graph → Policy Integrity → Risk/Simulation → Repair/Approval/Block → Tool Gate → Audit + Incident + Telemetry`
+`Human / Workload Identity → Workspace & Agent IAM → Intent → Provenance & Action Graph → Policy / MCP Governance → Risk & Consequence Analysis → ALLOW / REWRITE / APPROVAL / BLOCK → Audit + Incident + Telemetry`
 
-Start with:
-- `docs/MASTER_UPGRADE_V1_1.md`
-- `docs/MASTER_UPGRADE_V1.md`
-- `docs/ARCHITECTURE.md`
-- `docs/STARTUP_MVP.md`
-- `docs/THREAT_MODEL.md`
-- `docs/EVALUATION.md`
-- `docs/RESEARCH.md`
-- `docs/adr/`
+Useful docs:
 
-## Research basis
-
-v1.2 is explicitly informed by current work around OWASP Agent Control Standard / Agentic Top 10, NIST software & AI agent identity/authorization, current MCP authorization hardening, and OpenTelemetry GenAI observability. Exact primary-source links and the resulting engineering decisions are recorded in `docs/MASTER_UPGRADE_V1_1.md` and `docs/MASTER_UPGRADE_V1.md`.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/JUDGE_RUNBOOK.md`](docs/JUDGE_RUNBOOK.md)
+- [`docs/HACKATHON_PITCH.md`](docs/HACKATHON_PITCH.md)
+- [`docs/JUDGE_QA.md`](docs/JUDGE_QA.md)
+- [`docs/PRODUCTION_PROFILE.md`](docs/PRODUCTION_PROFILE.md)
+- [`docs/EVALUATION.md`](docs/EVALUATION.md)
+- [`docs/ONBOARDING.md`](docs/ONBOARDING.md)
 
 ## Safety
 
 High-risk demonstrations are local simulations. The hackathon MVP does not perform real payments, secret exfiltration, destructive production database actions, or attacks against external systems.
-
-## v1.2 identity & governance upgrade
-
-- Signed, expiring human member sessions with revocation and live RBAC refresh
-- Ed25519 agent workload identities for replay-resistant agent-to-agent messages
-- Governed policy promotion: immutable bundle → structured diff → approval-group votes → activation
-- Deployment security-posture checks and HTTP hardening
-- 47 automated tests passing
-- 19-scenario / 190-evaluation deterministic regression suite (not production accuracy)
