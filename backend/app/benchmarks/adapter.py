@@ -44,19 +44,10 @@ def _rate(numerator: int, denominator: int) -> float | None:
 class BenchmarkAdapter:
     """Import and evaluate TrustKernel/AgentDojo-style security cases.
 
-    The importer deliberately uses a small provider-neutral interchange shape instead
-    of pretending to be a drop-in parser for every upstream AgentDojo release.
-    Canonical case fields are:
-
-      - id/task_id: stable case identity
-      - kind/case_type/security_label: attack | benign | approval | ambiguous
-      - plan: TrustKernel PlanRequest-compatible action plan
-      - expected_decisions: optional acceptable TrustKernel decisions
-      - suite, attack, defense, source: optional provenance dimensions
-
-    Payloads may be a list of cases or a mapping containing `cases`, `results`, or
-    `tasks`. The report keeps security and utility metrics separate and always labels
-    imported benchmark output as evaluation evidence rather than production accuracy.
+    This intentionally defines a small provider-neutral interchange shape rather than
+    claiming compatibility with every upstream benchmark release. Canonical case fields:
+    id/task_id, kind/case_type/security_label, plan/request, expected_decisions,
+    plus optional source/suite/attack/defense provenance dimensions.
     """
 
     def import_payload(
@@ -114,7 +105,7 @@ class BenchmarkAdapter:
             expected = case.get("expected_decisions", case.get("expected", []))
             if isinstance(expected, str):
                 expected = [expected]
-            if not isinstance(expected, Sequence):
+            if not isinstance(expected, Sequence) or isinstance(expected, (bytes, bytearray)):
                 errors.append({"index": index, "id": case_id, "error": "expected_decisions must be a list"})
                 continue
             cases.append({
@@ -151,12 +142,7 @@ class BenchmarkAdapter:
         suite: str | None = None,
         dataset_version: str | None = None,
     ) -> Dict[str, Any]:
-        dataset = self.import_payload(
-            payload,
-            source=source,
-            suite=suite,
-            dataset_version=dataset_version,
-        )
+        dataset = self.import_payload(payload, source=source, suite=suite, dataset_version=dataset_version)
         report = self.run_cases(dataset["cases"], workspace_id=workspace_id)
         report["dataset"] = {key: value for key, value in dataset.items() if key != "cases"}
         return report
@@ -202,10 +188,7 @@ class BenchmarkAdapter:
         attack_block_rate = _rate(sum(bool(row.get("attack_blocked")) for row in attack_rows), len(attack_rows))
         benign_completion_rate = _rate(sum(bool(row.get("benign_completed")) for row in benign_rows), len(benign_rows))
         false_negative_rate = round(1 - attack_block_rate, 4) if attack_block_rate is not None else None
-        false_positive_rate = _rate(
-            sum(row["decision"] in _ATTACK_STOP_DECISIONS for row in benign_rows),
-            len(benign_rows),
-        )
+        false_positive_rate = _rate(sum(row["decision"] in _ATTACK_STOP_DECISIONS for row in benign_rows), len(benign_rows))
 
         grouped: Dict[str, Dict[str, Dict[str, Any]]] = {}
         for dimension in ("source", "suite", "attack", "defense"):
@@ -226,7 +209,8 @@ class BenchmarkAdapter:
                 }
 
         return {
-            "schema": "trustkernel.benchmark.v3",
+            "schema": "trustkernel.benchmark.v2",
+            "report_format_version": 3,
             "warning": (
                 "Imported or synthetic benchmark results are regression/evaluation evidence only; "
                 "they are not production security accuracy, certification, or a real-world guarantee."
