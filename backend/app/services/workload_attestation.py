@@ -7,7 +7,7 @@ import re
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Mapping, Sequence
+from typing import Any, Callable, Dict, Mapping
 
 
 _SPIFFE_ID = re.compile(r"^spiffe://([a-z0-9.-]+)(/[^?#]*)?$")
@@ -62,8 +62,8 @@ class WorkloadAttestation:
         }
         return hashlib.sha256(canonical_bytes(payload)).hexdigest()
 
-    def public_metadata(self) -> Dict[str, Any]:
-        self.validate()
+    def public_metadata(self, *, now: int | None = None) -> Dict[str, Any]:
+        self.validate(now=now)
         return {
             "provider": self.provider,
             "workload_id": self.workload_id,
@@ -137,8 +137,8 @@ def attested_signature_envelope(
 ) -> Dict[str, Any]:
     if not purpose.strip():
         raise ValueError("purpose is required")
-    attestation.validate(now=now)
     issued_at = int(time.time() if now is None else now)
+    attestation.validate(now=issued_at)
     message_sha256 = hashlib.sha256(message).hexdigest()
     binding = canonical_bytes(
         {
@@ -153,7 +153,7 @@ def attested_signature_envelope(
         "purpose": purpose,
         "issued_at": issued_at,
         "message_sha256": message_sha256,
-        "attestation": attestation.public_metadata(),
+        "attestation": attestation.public_metadata(now=issued_at),
         "key_reference": signer.key_reference,
         "algorithm": signer.algorithm,
         "signature": signer.sign_b64url(binding),
