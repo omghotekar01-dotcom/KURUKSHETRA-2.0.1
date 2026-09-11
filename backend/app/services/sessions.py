@@ -9,6 +9,7 @@ import time
 from typing import Any, Dict, Optional, Tuple
 
 from .members import members
+from .oidc import oidc
 from .storage import store
 
 
@@ -21,11 +22,12 @@ def _unb64(value: str) -> bytes:
 
 
 class SessionService:
-    """Small HMAC-backed member sessions for the offline-first MVP.
+    """Human identity adapter for TrustKernel.
 
-    The token format is deliberately simple and dependency-free. Production
-    deployments can replace this adapter with OIDC/JWT while preserving the
-    principal contract returned by verify().
+    Local HMAC-backed sessions keep the hackathon build offline-first. When an
+    external bearer token is supplied, the same verifier transparently falls
+    back to the configured OIDC/JWT adapter. Both paths normalize into one
+    principal contract consumed by the RBAC layer.
     """
 
     def __init__(self) -> None:
@@ -45,6 +47,7 @@ class SessionService:
             "iat": now,
             "exp": exp,
             "jti": f"ses_{secrets.token_urlsafe(12)}",
+            "auth_source": "local_session",
         }
         body = _b64(json.dumps(claims, sort_keys=True, separators=(",", ":")).encode("utf-8"))
         sig = _b64(hmac.new(self.key, body.encode("ascii"), hashlib.sha256).digest())
@@ -56,6 +59,8 @@ class SessionService:
         return {"token": token, "token_type": "Bearer", "expires_at": exp, "principal": claims}
 
     def verify(self, token: str) -> Tuple[Optional[Dict[str, Any]], str]:
+        if not token.startswith("tk_session."):
+            return oidc.verify(token)
         try:
             prefix, body, sig = token.split(".", 2)
             if prefix != "tk_session":
@@ -74,11 +79,14 @@ class SessionService:
             if not member:
                 return None, "member_removed"
             claims["role"] = member["role"]
+            claims["auth_source"] = "local_session"
             return claims, "verified"
         except Exception:
             return None, "malformed"
 
     def revoke(self, jti: str) -> bool:
+        if jti.startswith("oidc_"):
+            return False
         return store.revoke_member_session(jti, time.time())
 
 
