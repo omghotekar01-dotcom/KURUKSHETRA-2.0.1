@@ -4,9 +4,14 @@ on:
   push:
     branches: [main, trustkernel-dev]
     paths:
+      - 'VERSION'
+      - 'README.md'
       - 'backend/requirements.txt'
       - 'backend/supply_chain_check.py'
+      - 'backend/submission_manifest.py'
+      - 'backend/release_check.py'
       - 'backend/tests/test_v1413_supply_chain.py'
+      - 'backend/tests/test_release_check.py'
       - '.github/workflows/supply-chain.yml'
   pull_request:
     branches: [main]
@@ -18,6 +23,10 @@ jobs:
   python-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -34,13 +43,28 @@ jobs:
       - name: Generate CycloneDX SBOM
         working-directory: backend
         run: python -m pip_audit -r requirements.txt --format cyclonedx-json --output trustkernel-sbom.cdx.json
-      - name: Upload CycloneDX SBOM evidence
+      - name: Generate deterministic submission manifest
+        run: python backend/submission_manifest.py > trustkernel-submission-manifest.json
+      - name: Upload supply-chain evidence
         uses: actions/upload-artifact@v4
         with:
-          name: trustkernel-cyclonedx-sbom
-          path: backend/trustkernel-sbom.cdx.json
+          name: trustkernel-supply-chain-evidence
+          path: |
+            backend/trustkernel-sbom.cdx.json
+            trustkernel-submission-manifest.json
           if-no-files-found: error
           retention-days: 14
+      - name: Attest release manifest provenance
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/attest@v4
+        with:
+          subject-path: trustkernel-submission-manifest.json
+      - name: Attest SBOM against release manifest
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/attest@v4
+        with:
+          subject-path: trustkernel-submission-manifest.json
+          sbom-path: backend/trustkernel-sbom.cdx.json
 
   dependency-review:
     if: github.event_name == 'pull_request'
@@ -56,4 +80,4 @@ jobs:
           fail-on-severity: high
           show-openssf-scorecard: true
       - name: Explain dependency-review support boundary
-        run: echo "GitHub dependency-review is supplementary and requires the repository Dependency graph feature. Blocking supply-chain enforcement is provided by exact-pin validation and pip-audit in the python-audit job."
+        run: echo "GitHub dependency-review is supplementary and requires the repository Dependency graph feature. Blocking supply-chain enforcement is provided by exact-pin validation and pip-audit in the python-audit job. Main-branch supply-chain evidence additionally receives GitHub artifact attestations for provenance/integrity verification; those attestations do not certify that the software is secure."
