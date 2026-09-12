@@ -17,6 +17,8 @@ REQUIRED_ASSETS = (
     "start.sh",
     "docker-compose.production.yml",
     ".github/workflows/supply-chain.yml",
+    "frontend/index.html",
+    "backend/app/bootstrap.py",
     "docs/JUDGE_RUNBOOK.md",
     "docs/JUDGE_CHEATSHEET.md",
     "docs/JUDGE_ARCHITECTURE.md",
@@ -83,6 +85,24 @@ def run() -> dict:
         "versions": versions,
     })
 
+    bootstrap = _read("backend/app/bootstrap.py") if (ROOT / "backend/app/bootstrap.py").is_file() else ""
+    frontend = _read("frontend/index.html") if (ROOT / "frontend/index.html").is_file() else ""
+    hardcoded_runtime_versions = re.findall(r'(?:main_module\.VERSION|app\.version)\s*=\s*["\']\d+\.\d+\.\d+["\']', bootstrap)
+    hardcoded_ui_versions = re.findall(r"TRUSTKERNEL\s+v\d+\.\d+\.\d+", frontend, flags=re.IGNORECASE)
+    runtime_binding_ok = all(marker in bootstrap for marker in (
+        'ROOT / "VERSION"',
+        "main_module.VERSION = VERSION",
+        "app.version = VERSION",
+        '@app.get("/api/version"',
+    ))
+    checks.append({
+        "name": "runtime_version_binding",
+        "passed": runtime_binding_ok and not hardcoded_runtime_versions and not hardcoded_ui_versions,
+        "hardcoded_runtime_versions": hardcoded_runtime_versions,
+        "hardcoded_ui_versions": hardcoded_ui_versions,
+        "detail": "Runtime release metadata is bound to the canonical VERSION file and the judge UI contains no independent release literal.",
+    })
+
     claims_ok = CLAIMS_DISCIPLINE_FRAGMENT in readme
     checks.append({
         "name": "claims_discipline",
@@ -120,12 +140,12 @@ def run() -> dict:
 
     passed = all(check["passed"] for check in checks)
     return {
-        "schema": "trustkernel.release-check.v3",
+        "schema": "trustkernel.release-check.v4",
         "version": version or None,
         "passed": passed,
         "status": "release-ready" if passed else "blocked",
         "checks": checks,
-        "evidence_note": "This gate checks release consistency, dependency declaration hygiene and submission posture; known-vulnerability scanning is a separate CI gate and none of these checks is a security certification.",
+        "evidence_note": "This gate checks release consistency, canonical runtime version binding, dependency declaration hygiene and submission posture; known-vulnerability scanning is a separate CI gate and none of these checks is a security certification.",
     }
 
 
