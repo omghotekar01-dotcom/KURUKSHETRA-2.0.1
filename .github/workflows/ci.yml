@@ -85,7 +85,9 @@ jobs:
         working-directory: backend
         env:
           TRUSTKERNEL_ENV: development
-        run: python rehearsal.py --iterations 3 > /tmp/trustkernel-rehearsal.json
+        run: |
+          set -o pipefail
+          python rehearsal.py --iterations 3 | tee /tmp/trustkernel-rehearsal.json
       - name: Validate production deployment gate
         working-directory: backend
         env:
