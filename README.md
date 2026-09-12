@@ -1,7 +1,7 @@
 # TrustKernel
 
 **Runtime Security & Authorization Control Plane for Autonomous AI Agents**  
-Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.15
+Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.16
 
 TrustKernel sits on the execution path between autonomous AI agents and their tools. It evaluates identity, workspace scope, intent, tool provenance, information-flow labels, policy, risk and consequences **before execution**, then returns one of five deterministic outcomes:
 
@@ -19,7 +19,7 @@ It is not positioned as a prompt filter. TrustKernel is a runtime authorization,
 - Governed MCP trust registry with signed change evidence, resource/scope/token-passthrough enforcement
 - Runtime action graph, taint/provenance tracking, policy evaluation, risk analysis and deterministic safe-plan repair
 - Persistent incidents, approvals, audit ledger and remediation evidence
-- SQLite offline mode plus PostgreSQL persistence abstraction and schema migrations
+- SQLite offline mode plus PostgreSQL persistence abstraction, checksum-pinned schema migrations, transaction-scoped migration ownership and live PostgreSQL CI coverage
 - Distributed quota backend interface
 - OTLP JSON/HTTP telemetry plus optional native OpenTelemetry SDK exporter
 - Visual Policy Studio with structured diff/approval flow
@@ -110,7 +110,7 @@ Production-profile configurations can additionally run:
 python deployment_check.py
 ```
 
-CI runs the unified rehearsal plus the production deployment-readiness gate before stable checkpoints are merged to `main`. The separate supply-chain workflow also runs blocking `pip-audit` known-vulnerability scanning and emits CycloneDX JSON SBOM + submission-manifest build evidence. On stable `main` pushes, GitHub OIDC-backed attestations are requested for the submission manifest and its SBOM relationship. On pull requests the workflow additionally attempts GitHub's native dependency-review action; that supplementary check requires the repository Dependency graph feature and is non-blocking when GitHub reports the feature unavailable. The offline `supply_chain_check.py` validates declaration hygiene; vulnerability findings come from the CI audit and can change as advisory databases evolve.
+CI runs a live PostgreSQL persistence integration test before the unified rehearsal and production deployment-readiness gate. The live database test verifies the migration ledger and representative workspace, agent and approval CRUD through the production adapter. The separate supply-chain workflow also runs blocking `pip-audit` known-vulnerability scanning and emits CycloneDX JSON SBOM + submission-manifest build evidence. On stable `main` pushes, GitHub OIDC-backed attestations are requested for the submission manifest and its SBOM relationship. On pull requests the workflow additionally attempts GitHub's native dependency-review action; that supplementary check requires the repository Dependency graph feature and is non-blocking when GitHub reports the feature unavailable. The offline `supply_chain_check.py` validates declaration hygiene; vulnerability findings come from the CI audit and can change as advisory databases evolve.
 
 **Claims discipline:** bundled/synthetic/imported benchmark and Judge Mode results are deterministic regression/evaluation evidence. They are **not** production security accuracy, certification, universal exploit coverage, or a guarantee that every real-world attack will be blocked.
 
