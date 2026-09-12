@@ -9,6 +9,7 @@ def _production_env() -> dict[str, str]:
         "TRUSTKERNEL_REQUIRE_POLICY_APPROVAL": "1",
         "TRUSTKERNEL_POLICY_FOUR_EYES": "1",
         "TRUSTKERNEL_CORS_ORIGINS": "https://console.trustkernel.example",
+        "TRUSTKERNEL_ALLOWED_HOSTS": "api.trustkernel.example",
         "TRUSTKERNEL_SESSION_SIGNING_KEY": "s" * 48,
         "TRUSTKERNEL_A2A_SIGNING_KEY": "a" * 48,
         "TRUSTKERNEL_POLICY_SIGNING_KEY": "p" * 48,
@@ -41,6 +42,7 @@ def test_development_defaults_fail_closed_for_production_gate():
     failed = {check.name for check in report.checks if not check.passed and check.severity == "error"}
     assert "production-mode" in failed
     assert "cors-restricted" in failed
+    assert "host-header-restricted" in failed
     assert "postgres-production-persistence" in failed
     assert "distributed-quota-backend" in failed
     assert "redis-quota-tls" in failed

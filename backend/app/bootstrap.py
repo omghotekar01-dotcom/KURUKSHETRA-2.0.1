@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .services.http_security import configure_http_security
 from .services.persistence import configure_store_backend
 from .services.quotas import configure_quota_backend
 
@@ -18,6 +19,7 @@ VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 main_module.VERSION = VERSION
 app = main_module.app
 app.version = VERSION
+configure_http_security(app)
 app.include_router(v13_router)
 app.include_router(v14_router)
 
