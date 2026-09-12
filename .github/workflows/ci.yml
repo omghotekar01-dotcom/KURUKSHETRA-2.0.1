@@ -24,6 +24,15 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      redis:
+        image: redis:8.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -37,6 +46,11 @@ jobs:
         env:
           TRUSTKERNEL_POSTGRES_TEST_URL: postgresql://trustkernel:ci-only@127.0.0.1:5432/trustkernel
         run: pytest -q tests/test_v1416_postgres_integration.py
+      - name: Run live Redis distributed quota integration
+        working-directory: backend
+        env:
+          TRUSTKERNEL_REDIS_TEST_URL: redis://127.0.0.1:6379/0
+        run: pytest -q tests/test_v1417_redis_quota_integration.py
       - name: Run unified judge rehearsal gate
         working-directory: backend
         env:
@@ -60,5 +74,7 @@ jobs:
           TRUSTKERNEL_OIDC_REQUIRE_HTTPS: '1'
           TRUSTKERNEL_DB_BACKEND: postgres
           TRUSTKERNEL_DATABASE_URL: postgresql://trustkernel:ci-only@postgres:5432/trustkernel
+          TRUSTKERNEL_QUOTA_BACKEND: redis
+          TRUSTKERNEL_REDIS_URL: rediss://redis.internal.example:6379/0
           OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
         run: python deployment_check.py > /tmp/trustkernel-production-readiness.json

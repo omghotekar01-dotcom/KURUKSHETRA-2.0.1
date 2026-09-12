@@ -47,84 +47,35 @@ def assess_production_readiness(env: Mapping[str, str]) -> ReadinessReport:
     def add(name: str, passed: bool, detail: str, severity: str = "error") -> None:
         checks.append(ReadinessCheck(name=name, passed=passed, severity=severity, detail=detail))
 
-    add(
-        "production-mode",
-        env.get("TRUSTKERNEL_ENV", "").strip().lower() == "production",
-        "TRUSTKERNEL_ENV must be production for this gate.",
-    )
-    add(
-        "api-key-enforcement",
-        _enabled(env, "TRUSTKERNEL_REQUIRE_API_KEY"),
-        "API-key enforcement must be enabled for production ingress.",
-    )
-    add(
-        "legacy-actor-header-disabled",
-        not _enabled(env, "TRUSTKERNEL_ALLOW_LEGACY_ACTOR_HEADER"),
-        "Legacy actor headers must be disabled so identity comes from verified credentials.",
-    )
-    add(
-        "policy-approval-required",
-        _enabled(env, "TRUSTKERNEL_REQUIRE_POLICY_APPROVAL"),
-        "Policy activation must require approval.",
-    )
-    add(
-        "four-eyes-enabled",
-        _enabled(env, "TRUSTKERNEL_POLICY_FOUR_EYES"),
-        "Four-eyes governance must remain enabled.",
-    )
+    add("production-mode", env.get("TRUSTKERNEL_ENV", "").strip().lower() == "production", "TRUSTKERNEL_ENV must be production for this gate.")
+    add("api-key-enforcement", _enabled(env, "TRUSTKERNEL_REQUIRE_API_KEY"), "API-key enforcement must be enabled for production ingress.")
+    add("legacy-actor-header-disabled", not _enabled(env, "TRUSTKERNEL_ALLOW_LEGACY_ACTOR_HEADER"), "Legacy actor headers must be disabled so identity comes from verified credentials.")
+    add("policy-approval-required", _enabled(env, "TRUSTKERNEL_REQUIRE_POLICY_APPROVAL"), "Policy activation must require approval.")
+    add("four-eyes-enabled", _enabled(env, "TRUSTKERNEL_POLICY_FOUR_EYES"), "Four-eyes governance must remain enabled.")
 
     cors = env.get("TRUSTKERNEL_CORS_ORIGINS", "").strip()
-    add(
-        "cors-restricted",
-        bool(cors) and cors != "*" and "*" not in {part.strip() for part in cors.split(",")},
-        "CORS origins must be an explicit allow-list, never wildcard.",
-    )
+    add("cors-restricted", bool(cors) and cors != "*" and "*" not in {part.strip() for part in cors.split(",")}, "CORS origins must be an explicit allow-list, never wildcard.")
 
-    for key in (
-        "TRUSTKERNEL_SESSION_SIGNING_KEY",
-        "TRUSTKERNEL_A2A_SIGNING_KEY",
-        "TRUSTKERNEL_POLICY_SIGNING_KEY",
-        "TRUSTKERNEL_EVIDENCE_SIGNING_KEY",
-    ):
-        add(
-            f"secret:{key}",
-            _strong_secret(env.get(key, "")),
-            f"{key} must be rotated, non-placeholder, and at least 32 characters.",
-        )
+    for key in ("TRUSTKERNEL_SESSION_SIGNING_KEY", "TRUSTKERNEL_A2A_SIGNING_KEY", "TRUSTKERNEL_POLICY_SIGNING_KEY", "TRUSTKERNEL_EVIDENCE_SIGNING_KEY"):
+        add(f"secret:{key}", _strong_secret(env.get(key, "")), f"{key} must be rotated, non-placeholder, and at least 32 characters.")
 
     issuer = env.get("TRUSTKERNEL_OIDC_ISSUER", "")
-    add(
-        "oidc-issuer-https",
-        _https_url(issuer),
-        "OIDC issuer must be an absolute HTTPS URL.",
-    )
-    add(
-        "oidc-audience-configured",
-        bool(env.get("TRUSTKERNEL_OIDC_AUDIENCE", "").strip()),
-        "OIDC audience must be configured and validated.",
-    )
-    add(
-        "oidc-https-required",
-        _enabled(env, "TRUSTKERNEL_OIDC_REQUIRE_HTTPS"),
-        "OIDC discovery and JWKS HTTPS enforcement must stay enabled.",
-    )
+    add("oidc-issuer-https", _https_url(issuer), "OIDC issuer must be an absolute HTTPS URL.")
+    add("oidc-audience-configured", bool(env.get("TRUSTKERNEL_OIDC_AUDIENCE", "").strip()), "OIDC audience must be configured and validated.")
+    add("oidc-https-required", _enabled(env, "TRUSTKERNEL_OIDC_REQUIRE_HTTPS"), "OIDC discovery and JWKS HTTPS enforcement must stay enabled.")
 
     backend = env.get("TRUSTKERNEL_DB_BACKEND", "sqlite").strip().lower()
     database_url = env.get("TRUSTKERNEL_DATABASE_URL", "").strip()
     postgres_ready = backend == "postgres" and database_url.startswith(("postgresql://", "postgresql+psycopg://"))
-    add(
-        "postgres-production-persistence",
-        postgres_ready,
-        "Production profile must use the PostgreSQL persistence backend; SQLite remains supported for offline/demo mode.",
-    )
+    add("postgres-production-persistence", postgres_ready, "Production profile must use the PostgreSQL persistence backend; SQLite remains supported for offline/demo mode.")
+
+    quota_backend = env.get("TRUSTKERNEL_QUOTA_BACKEND", "memory").strip().lower()
+    redis_url = env.get("TRUSTKERNEL_REDIS_URL", "").strip()
+    add("distributed-quota-backend", quota_backend == "redis", "Production profile must use the Redis distributed quota backend so replicas share one enforcement state.")
+    add("redis-quota-tls", redis_url.startswith("rediss://"), "Production Redis quota transport must use TLS via a rediss:// URL.")
 
     otlp_endpoint = env.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "").strip()
-    add(
-        "native-otel-export-configured",
-        bool(otlp_endpoint),
-        "Configure the native OpenTelemetry trace exporter for production observability.",
-        severity="warning",
-    )
+    add("native-otel-export-configured", bool(otlp_endpoint), "Configure the native OpenTelemetry trace exporter for production observability.", severity="warning")
 
     errors = [check for check in checks if check.severity == "error" and not check.passed]
     return ReadinessReport(ready=not errors, checks=tuple(checks))

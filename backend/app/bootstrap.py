@@ -3,8 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from .services.persistence import configure_store_backend
+from .services.quotas import configure_quota_backend
 
 configure_store_backend()
+configure_quota_backend()
 
 from . import main as main_module
 from .v13_api import router as v13_router

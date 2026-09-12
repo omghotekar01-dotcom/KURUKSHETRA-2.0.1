@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from collections import defaultdict, deque
 from dataclasses import dataclass
+import hashlib
 import os
 import threading
 import time
-from typing import Any, Callable, Deque, Dict, Protocol, Tuple, runtime_checkable
+from typing import Any, Callable, Deque, Dict, Protocol, runtime_checkable
 
 
 @dataclass(frozen=True)
@@ -16,20 +17,13 @@ class QuotaLimits:
 
 @runtime_checkable
 class QuotaBackend(Protocol):
-    """Backend contract for atomic workspace quota accounting.
-
-    Distributed implementations MUST make check_and_consume atomic for a
-    workspace key. This keeps the policy decision and counter increment in one
-    operation and prevents concurrent workers from overspending a quota.
-    """
+    """Backend contract for atomic workspace quota accounting."""
 
     name: str
     distributed: bool
 
     def check_and_consume(self, workspace_id: str, limits: QuotaLimits, now: float) -> Dict[str, Any]: ...
-
     def status(self, workspace_id: str, limits: QuotaLimits, now: float) -> Dict[str, Any]: ...
-
     def reset(self, workspace_id: str) -> None: ...
 
 
@@ -76,23 +70,11 @@ class InMemoryQuotaBackend:
 
 
 class CallbackQuotaBackend:
-    """Adapter for Redis/DynamoDB/SQL-backed atomic quota implementations.
-
-    The callbacks are intentionally provider-neutral: production deployments
-    can bind an atomic Redis Lua script, a transactional SQL function, or a
-    managed rate-limit service without coupling TrustKernel core to one vendor.
-    """
+    """Provider-neutral adapter for externally managed atomic quota services."""
 
     distributed = True
 
-    def __init__(
-        self,
-        *,
-        consume: Callable[[str, QuotaLimits, float], Dict[str, Any]],
-        inspect: Callable[[str, QuotaLimits, float], Dict[str, Any]],
-        clear: Callable[[str], None],
-        name: str = "external",
-    ) -> None:
+    def __init__(self, *, consume: Callable[[str, QuotaLimits, float], Dict[str, Any]], inspect: Callable[[str, QuotaLimits, float], Dict[str, Any]], clear: Callable[[str], None], name: str = "external") -> None:
         self._consume = consume
         self._inspect = inspect
         self._clear = clear
@@ -108,13 +90,103 @@ class CallbackQuotaBackend:
         self._clear(workspace_id)
 
 
+_REDIS_CONSUME_SCRIPT = r"""
+local events = KEYS[1]
+local sequence = KEYS[2]
+local per_minute = tonumber(ARGV[1])
+local per_day = tonumber(ARGV[2])
+local ttl = tonumber(ARGV[3])
+local clock = redis.call('TIME')
+local now = tonumber(clock[1]) + (tonumber(clock[2]) / 1000000)
+redis.call('ZREMRANGEBYSCORE', events, '-inf', now - 86400)
+local day_used = redis.call('ZCARD', events)
+local minute_used = redis.call('ZCOUNT', events, now - 60, '+inf')
+if minute_used >= per_minute then
+  return {0, 1, minute_used, day_used}
+end
+if day_used >= per_day then
+  return {0, 2, minute_used, day_used}
+end
+local seq = redis.call('INCR', sequence)
+local member = tostring(clock[1]) .. ':' .. tostring(clock[2]) .. ':' .. tostring(seq)
+redis.call('ZADD', events, now, member)
+redis.call('EXPIRE', events, ttl)
+redis.call('EXPIRE', sequence, ttl)
+return {1, 0, minute_used + 1, day_used + 1}
+"""
+
+_REDIS_STATUS_SCRIPT = r"""
+local events = KEYS[1]
+local ttl = tonumber(ARGV[1])
+local clock = redis.call('TIME')
+local now = tonumber(clock[1]) + (tonumber(clock[2]) / 1000000)
+redis.call('ZREMRANGEBYSCORE', events, '-inf', now - 86400)
+local day_used = redis.call('ZCARD', events)
+local minute_used = redis.call('ZCOUNT', events, now - 60, '+inf')
+if day_used > 0 then redis.call('EXPIRE', events, ttl) end
+return {minute_used, day_used}
+"""
+
+
+class RedisQuotaBackend:
+    """Atomic shared quota backend for multi-replica deployments.
+
+    Redis server time is used inside Lua so application-node clock skew cannot
+    create inconsistent windows. Both keys use the same Redis Cluster hash tag.
+    The read/decide/write path executes as one short atomic script and failures
+    are propagated: production enforcement never silently falls back to memory.
+    """
+
+    name = "redis"
+    distributed = True
+
+    def __init__(self, url: str, *, key_prefix: str = "trustkernel:quota", socket_timeout: float = 2.0) -> None:
+        if not url.strip():
+            raise ValueError("Redis quota backend requires TRUSTKERNEL_REDIS_URL")
+        try:
+            import redis
+        except ImportError as exc:  # pragma: no cover - dependency gate covers this
+            raise RuntimeError("redis package is required for RedisQuotaBackend") from exc
+        self._client = redis.Redis.from_url(
+            url,
+            decode_responses=False,
+            socket_connect_timeout=socket_timeout,
+            socket_timeout=socket_timeout,
+            health_check_interval=30,
+        )
+        self._prefix = key_prefix.strip(":") or "trustkernel:quota"
+        self._consume = self._client.register_script(_REDIS_CONSUME_SCRIPT)
+        self._inspect = self._client.register_script(_REDIS_STATUS_SCRIPT)
+        self._ttl_seconds = 86520
+
+    def _keys(self, workspace_id: str) -> tuple[str, str]:
+        digest = hashlib.sha256(workspace_id.encode("utf-8")).hexdigest()
+        tag = "{" + digest + "}"
+        return f"{self._prefix}:{tag}:events", f"{self._prefix}:{tag}:seq"
+
+    def ping(self) -> bool:
+        return bool(self._client.ping())
+
+    def check_and_consume(self, workspace_id: str, limits: QuotaLimits, now: float) -> Dict[str, Any]:
+        del now  # Redis server time is authoritative for distributed windows.
+        raw = self._consume(keys=list(self._keys(workspace_id)), args=[limits.per_minute, limits.per_day, self._ttl_seconds])
+        allowed, reason_code, minute_used, day_used = [int(value) for value in raw]
+        reason = {0: "ok", 1: "minute_rate_limit", 2: "daily_quota"}.get(reason_code, "backend_error")
+        return _result(bool(allowed), reason, minute_used, limits, day_used)
+
+    def status(self, workspace_id: str, limits: QuotaLimits, now: float) -> Dict[str, Any]:
+        del now
+        events, _ = self._keys(workspace_id)
+        raw = self._inspect(keys=[events], args=[self._ttl_seconds])
+        minute_used, day_used = [int(value) for value in raw]
+        return _status(minute_used, limits, day_used)
+
+    def reset(self, workspace_id: str) -> None:
+        self._client.delete(*self._keys(workspace_id))
+
+
 def _status(minute_used: int, limits: QuotaLimits, day_used: int) -> Dict[str, Any]:
-    return {
-        "minute_used": int(minute_used),
-        "minute_limit": limits.per_minute,
-        "day_used": int(day_used),
-        "day_limit": limits.per_day,
-    }
+    return {"minute_used": int(minute_used), "minute_limit": limits.per_minute, "day_used": int(day_used), "day_limit": limits.per_day}
 
 
 def _result(allowed: bool, reason: str, minute_used: int, limits: QuotaLimits, day_used: int) -> Dict[str, Any]:
@@ -134,8 +206,6 @@ def _validate_backend_result(result: Dict[str, Any], *, require_allowed: bool) -
 
 
 class QuotaService:
-    """Workspace quota guard with a swappable atomic accounting backend."""
-
     def __init__(self, backend: QuotaBackend | None = None) -> None:
         self._backend: QuotaBackend = backend or InMemoryQuotaBackend()
         self._backend_lock = threading.RLock()
@@ -181,3 +251,21 @@ class QuotaService:
 
 
 quotas = QuotaService()
+
+
+def configure_quota_backend() -> QuotaBackend:
+    backend = os.getenv("TRUSTKERNEL_QUOTA_BACKEND", "memory").strip().lower()
+    if backend in {"memory", "inmemory", "in-memory"}:
+        quotas.use_in_memory_backend()
+        return quotas._backend
+    if backend == "redis":
+        redis_backend = RedisQuotaBackend(
+            os.getenv("TRUSTKERNEL_REDIS_URL", ""),
+            key_prefix=os.getenv("TRUSTKERNEL_REDIS_QUOTA_PREFIX", "trustkernel:quota"),
+            socket_timeout=max(0.1, float(os.getenv("TRUSTKERNEL_REDIS_TIMEOUT_SECONDS", "2"))),
+        )
+        if os.getenv("TRUSTKERNEL_REDIS_STARTUP_PING", "1") == "1" and not redis_backend.ping():
+            raise RuntimeError("Redis quota backend startup ping failed")
+        quotas.set_backend(redis_backend)
+        return redis_backend
+    raise ValueError(f"Unsupported TRUSTKERNEL_QUOTA_BACKEND: {backend}")
