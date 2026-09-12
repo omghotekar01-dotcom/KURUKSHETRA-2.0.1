@@ -14,11 +14,12 @@ REQUIRED_ASSETS = (
     "README.md", "VERSION", ".env.example", "start.bat", "start.sh",
     "docker-compose.production.yml", ".github/workflows/ci.yml", ".github/workflows/supply-chain.yml",
     "frontend/index.html", "backend/app/bootstrap.py", "backend/app/services/postgres_storage.py",
-    "backend/app/services/quotas.py", "backend/app/services/deployment_readiness.py",
+    "backend/app/services/quotas.py", "backend/app/services/otlp.py", "backend/app/services/deployment_readiness.py",
     "backend/tests/test_v1416_postgres_integration.py", "backend/tests/test_v1417_redis_quota_integration.py",
-    "docs/adr/ADR-007-v141-production-persistence.md", "docs/JUDGE_RUNBOOK.md", "docs/JUDGE_CHEATSHEET.md",
+    "backend/tests/test_v1418_otel_hardening.py", "docs/adr/ADR-007-v141-production-persistence.md",
+    "docs/adr/ADR-012-v1418-otel-production-hardening.md", "docs/JUDGE_RUNBOOK.md", "docs/JUDGE_CHEATSHEET.md",
     "docs/JUDGE_ARCHITECTURE.md", "docs/HACKATHON_PITCH.md", "docs/EVALUATION.md",
-    "examples/sdk_guard_quickstart.py", "sdk/pyproject.toml", "backend/submission_manifest.py",
+    "examples/sdk_guard_quickstart.py", "sdk/README.md", "sdk/pyproject.toml", "backend/submission_manifest.py",
     "backend/supply_chain_check.py",
 )
 
@@ -64,6 +65,15 @@ REQUIRED_REDIS_CI_MARKERS = (
     "image: redis:8.2-alpine", "redis-cli ping", "TRUSTKERNEL_REDIS_TEST_URL",
     "pytest -q tests/test_v1417_redis_quota_integration.py",
 )
+REQUIRED_OTEL_MARKERS = (
+    'ROOT / "VERSION"', "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "OTEL_EXPORTER_OTLP_ENDPOINT",
+    'f"{base_endpoint.rstrip(\'/\')}/v1/traces"', "otlp_https_required_in_production",
+    '"service.version": version', 'provider.get_tracer("trustkernel.security", version)',
+)
+REQUIRED_OTEL_READINESS_MARKERS = (
+    '"native-otel-export-configured"', '"otel-export-https"',
+    "not otlp_endpoint or _https_url(otlp_endpoint)",
+)
 
 
 def _read(path: str) -> str:
@@ -83,8 +93,15 @@ def run() -> dict:
     version = _read("VERSION").strip() if (ROOT / "VERSION").is_file() else ""
     sdk_version = _sdk_version() if (ROOT / "sdk/pyproject.toml").is_file() else ""
     readme = _read("README.md") if (ROOT / "README.md").is_file() else ""
+    sdk_readme = _read("sdk/README.md") if (ROOT / "sdk/README.md").is_file() else ""
     readme_match = re.search(r"Startup MVP v(\d+\.\d+\.\d+)", readme)
-    versions = {"VERSION": version, "sdk": sdk_version, "README": readme_match.group(1) if readme_match else ""}
+    sdk_readme_match = re.search(r"Package version:\s*\*\*(\d+\.\d+\.\d+) alpha\*\*", sdk_readme)
+    versions = {
+        "VERSION": version,
+        "sdk": sdk_version,
+        "README": readme_match.group(1) if readme_match else "",
+        "sdk/README": sdk_readme_match.group(1) if sdk_readme_match else "",
+    }
     checks.append({"name": "version_coherence", "passed": bool(version) and len(set(versions.values())) == 1, "versions": versions})
 
     bootstrap = _read("backend/app/bootstrap.py") if (ROOT / "backend/app/bootstrap.py").is_file() else ""
@@ -103,6 +120,8 @@ def run() -> dict:
 
     postgres_storage = _read("backend/app/services/postgres_storage.py") if (ROOT / "backend/app/services/postgres_storage.py").is_file() else ""
     quota_service = _read("backend/app/services/quotas.py") if (ROOT / "backend/app/services/quotas.py").is_file() else ""
+    otlp_service = _read("backend/app/services/otlp.py") if (ROOT / "backend/app/services/otlp.py").is_file() else ""
+    readiness_service = _read("backend/app/services/deployment_readiness.py") if (ROOT / "backend/app/services/deployment_readiness.py").is_file() else ""
     ci_workflow = _read(".github/workflows/ci.yml") if (ROOT / ".github/workflows/ci.yml").is_file() else ""
     missing_migration_markers = [marker for marker in REQUIRED_POSTGRES_MIGRATION_MARKERS if marker not in postgres_storage]
     missing_postgres_ci_markers = [marker for marker in REQUIRED_POSTGRES_CI_MARKERS if marker not in ci_workflow]
@@ -120,6 +139,18 @@ def run() -> dict:
         "detail": "Redis quota enforcement uses an atomic server-side read/decide/write path, server time, fail-closed startup configuration and live shared-state CI coverage.",
     })
 
+    missing_otel_markers = [marker for marker in REQUIRED_OTEL_MARKERS if marker not in otlp_service]
+    missing_otel_readiness_markers = [marker for marker in REQUIRED_OTEL_READINESS_MARKERS if marker not in readiness_service]
+    hardcoded_otel_versions = re.findall(r'["\']service\.version["\']\s*:\s*["\']\d+\.\d+\.\d+["\']', otlp_service)
+    checks.append({
+        "name": "otel_runtime_hardening",
+        "passed": not missing_otel_markers and not missing_otel_readiness_markers and not hardcoded_otel_versions,
+        "missing_exporter_markers": missing_otel_markers,
+        "missing_readiness_markers": missing_otel_readiness_markers,
+        "hardcoded_versions": hardcoded_otel_versions,
+        "detail": "OTLP telemetry binds service.version to VERSION, follows standard endpoint precedence and fails closed on plaintext production export.",
+    })
+
     supply_chain = supply_chain_check.run()
     checks.append({"name": "supply_chain_declarations", "passed": supply_chain["passed"], "requirements_sha256": supply_chain["sha256"], "direct_component_count": supply_chain["direct_component_count"], "violations": supply_chain["violations"]})
 
@@ -132,12 +163,12 @@ def run() -> dict:
 
     passed = all(check["passed"] for check in checks)
     return {
-        "schema": "trustkernel.release-check.v7",
+        "schema": "trustkernel.release-check.v8",
         "version": version or None,
         "passed": passed,
         "status": "release-ready" if passed else "blocked",
         "checks": checks,
-        "evidence_note": "This gate checks release consistency, runtime version binding, PostgreSQL migration coordination, Redis distributed quota declarations/live CI coverage, dependency declaration hygiene, configured artifact-attestation posture and submission integrity. These checks are not a security certification.",
+        "evidence_note": "This gate checks release consistency, runtime version binding, PostgreSQL migration coordination, Redis distributed quota declarations/live CI coverage, OTLP runtime/transport posture, dependency declaration hygiene, configured artifact-attestation posture and submission integrity. These checks are not a security certification.",
     }
 
 

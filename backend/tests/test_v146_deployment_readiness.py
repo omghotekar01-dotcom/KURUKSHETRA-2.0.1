@@ -20,7 +20,7 @@ def _production_env() -> dict[str, str]:
         "TRUSTKERNEL_DATABASE_URL": "postgresql://trustkernel:secret@postgres:5432/trustkernel",
         "TRUSTKERNEL_QUOTA_BACKEND": "redis",
         "TRUSTKERNEL_REDIS_URL": "rediss://redis.internal.example:6379/0",
-        "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "http://otel-collector:4318/v1/traces",
+        "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "https://otel-collector.example/v1/traces",
     }
 
 
@@ -55,11 +55,33 @@ def test_redis_quota_requires_tls_in_production():
     assert redis_tls.severity == "error"
 
 
-def test_otel_is_recommended_but_not_a_blocking_security_error():
+def test_otel_is_recommended_but_not_required_when_unconfigured():
     env = _production_env()
     env.pop("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
     report = assess_production_readiness(env)
     assert report.ready is True
-    otel = next(check for check in report.checks if check.name == "native-otel-export-configured")
-    assert otel.passed is False
-    assert otel.severity == "warning"
+    configured = next(check for check in report.checks if check.name == "native-otel-export-configured")
+    transport = next(check for check in report.checks if check.name == "otel-export-https")
+    assert configured.passed is False
+    assert configured.severity == "warning"
+    assert transport.passed is True
+
+
+def test_configured_otel_requires_https_in_production():
+    env = _production_env()
+    env["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] = "http://otel-collector:4318/v1/traces"
+    report = assess_production_readiness(env)
+    assert report.ready is False
+    transport = next(check for check in report.checks if check.name == "otel-export-https")
+    assert transport.passed is False
+    assert transport.severity == "error"
+
+
+def test_global_otel_endpoint_is_accepted_when_secure():
+    env = _production_env()
+    env.pop("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
+    env["OTEL_EXPORTER_OTLP_ENDPOINT"] = "https://otel-collector.example/base"
+    report = assess_production_readiness(env)
+    assert report.ready is True
+    configured = next(check for check in report.checks if check.name == "native-otel-export-configured")
+    assert configured.passed is True
