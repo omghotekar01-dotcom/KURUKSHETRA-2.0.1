@@ -37,6 +37,7 @@ CRITICAL_ASSETS = (
     "backend/tests/test_v1419_benchmark_reporting.py",
     "backend/tests/test_v1420_governance_ui.py",
     "backend/tests/test_v142_workload_attestation.py",
+    "backend/tests/test_v1422_sdk_packaging.py",
     "docs/adr/ADR-007-v141-production-persistence.md",
     "docs/adr/ADR-012-v1418-otel-production-hardening.md",
     "docs/adr/ADR-013-v1421-workload-envelope-verification.md",
@@ -73,7 +74,7 @@ def build_manifest() -> dict:
         assets.append({"path": relative, "sha256": _sha256(path), "size_bytes": path.stat().st_size})
 
     return {
-        "schema": "trustkernel.submission-manifest.v8",
+        "schema": "trustkernel.submission-manifest.v9",
         "version": version,
         "algorithm": "sha256",
         "complete": not missing,

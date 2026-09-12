@@ -116,7 +116,7 @@ def test_v14_capabilities_surface():
     response = client.get("/api/v14/capabilities")
     assert response.status_code == 200
     body = response.json()
-    assert body["version"] == VERSION == "1.4.21"
+    assert body["version"] == VERSION == "1.4.22"
     assert body["identity"]["oidc_discovery"] is True
     assert body["identity"]["workload_attestation_metadata"] is True
     assert body["identity"]["external_signer_adapter"] is True

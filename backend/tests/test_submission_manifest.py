@@ -10,8 +10,8 @@ def test_submission_manifest_is_complete_and_deterministic():
     second = submission_manifest.build_manifest()
 
     assert first == second
-    assert first["schema"] == "trustkernel.submission-manifest.v8"
-    assert first["version"] == "1.4.21"
+    assert first["schema"] == "trustkernel.submission-manifest.v9"
+    assert first["version"] == "1.4.22"
     assert first["complete"] is True
     assert first["missing"] == []
     assert len(first["assets"]) == len(submission_manifest.CRITICAL_ASSETS)
@@ -40,6 +40,7 @@ def test_submission_manifest_has_valid_sha256_for_every_asset():
     assert "backend/tests/test_v1419_benchmark_reporting.py" in actual_paths
     assert "backend/tests/test_v1420_governance_ui.py" in actual_paths
     assert "backend/tests/test_v142_workload_attestation.py" in actual_paths
+    assert "backend/tests/test_v1422_sdk_packaging.py" in actual_paths
     assert "docs/adr/ADR-012-v1418-otel-production-hardening.md" in actual_paths
     assert "docs/adr/ADR-013-v1421-workload-envelope-verification.md" in actual_paths
     for asset in manifest["assets"]:
