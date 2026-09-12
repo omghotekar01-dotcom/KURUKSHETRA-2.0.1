@@ -11,7 +11,7 @@ def test_submission_manifest_is_complete_and_deterministic():
 
     assert first == second
     assert first["schema"] == "trustkernel.submission-manifest.v2"
-    assert first["version"] == "1.4.14"
+    assert first["version"] == "1.4.15"
     assert first["complete"] is True
     assert first["missing"] == []
     assert len(first["assets"]) == len(submission_manifest.CRITICAL_ASSETS)
