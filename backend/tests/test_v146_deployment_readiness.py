@@ -18,6 +18,8 @@ def _production_env() -> dict[str, str]:
         "TRUSTKERNEL_OIDC_REQUIRE_HTTPS": "1",
         "TRUSTKERNEL_DB_BACKEND": "postgres",
         "TRUSTKERNEL_DATABASE_URL": "postgresql://trustkernel:secret@postgres:5432/trustkernel",
+        "TRUSTKERNEL_QUOTA_BACKEND": "redis",
+        "TRUSTKERNEL_REDIS_URL": "rediss://redis.internal.example:6379/0",
         "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "http://otel-collector:4318/v1/traces",
     }
 
@@ -39,6 +41,18 @@ def test_development_defaults_fail_closed_for_production_gate():
     assert "production-mode" in failed
     assert "cors-restricted" in failed
     assert "postgres-production-persistence" in failed
+    assert "distributed-quota-backend" in failed
+    assert "redis-quota-tls" in failed
+
+
+def test_redis_quota_requires_tls_in_production():
+    env = _production_env()
+    env["TRUSTKERNEL_REDIS_URL"] = "redis://redis.internal.example:6379/0"
+    report = assess_production_readiness(env)
+    assert report.ready is False
+    redis_tls = next(check for check in report.checks if check.name == "redis-quota-tls")
+    assert redis_tls.passed is False
+    assert redis_tls.severity == "error"
 
 
 def test_otel_is_recommended_but_not_a_blocking_security_error():
