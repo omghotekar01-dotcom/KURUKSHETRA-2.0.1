@@ -192,6 +192,27 @@ CREATE TABLE IF NOT EXISTS policy_change_votes (
 """
 
 MIGRATIONS = (Migration("0001_v14_baseline", POSTGRES_SCHEMA_V1),)
+MIGRATION_LOCK_NAMESPACE = "trustkernel.schema.migrations"
+MIGRATION_LOCK_KEY = int.from_bytes(
+    hashlib.sha256(MIGRATION_LOCK_NAMESPACE.encode("utf-8")).digest()[:8],
+    byteorder="big",
+    signed=True,
+)
+DEFAULT_MIGRATION_LOCK_TIMEOUT_MS = 15_000
+MAX_MIGRATION_LOCK_TIMEOUT_MS = 120_000
+
+
+def _migration_lock_timeout_ms() -> int:
+    raw = os.getenv("TRUSTKERNEL_MIGRATION_LOCK_TIMEOUT_MS", str(DEFAULT_MIGRATION_LOCK_TIMEOUT_MS)).strip()
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise RuntimeError("TRUSTKERNEL_MIGRATION_LOCK_TIMEOUT_MS must be an integer") from exc
+    if value < 1_000 or value > MAX_MIGRATION_LOCK_TIMEOUT_MS:
+        raise RuntimeError(
+            f"TRUSTKERNEL_MIGRATION_LOCK_TIMEOUT_MS must be between 1000 and {MAX_MIGRATION_LOCK_TIMEOUT_MS}"
+        )
+    return value
 
 
 class CompatRow(dict):
@@ -274,7 +295,8 @@ class PostgresStore(SQLiteStore):
 
     The inherited CRUD methods intentionally stay unchanged; this adapter
     normalizes parameter binding and SQLite's handful of REPLACE statements.
-    Migrations are checksum-pinned and fail closed on drift.
+    Migrations are checksum-pinned, serialized with a PostgreSQL transaction
+    advisory lock, and fail closed on checksum drift or bounded lock timeout.
     """
 
     backend = "postgresql"
@@ -291,8 +313,24 @@ class PostgresStore(SQLiteStore):
     def _connect(self) -> ConnectionAdapter:
         return ConnectionAdapter(self.dsn)
 
+    @staticmethod
+    def _acquire_migration_lock(db: ConnectionAdapter) -> None:
+        timeout_ms = _migration_lock_timeout_ms()
+        try:
+            db.execute(
+                "SELECT set_config('statement_timeout', ?, true) AS value",
+                (f"{timeout_ms}ms",),
+            )
+            db.execute("SELECT pg_advisory_xact_lock(?) AS locked", (MIGRATION_LOCK_KEY,))
+            db.execute("SELECT set_config('statement_timeout', '0', true) AS value")
+        except Exception as exc:
+            raise RuntimeError(
+                f"could not acquire TrustKernel PostgreSQL migration lock within {timeout_ms}ms"
+            ) from exc
+
     def _init_schema(self) -> None:
         with self._lock, self._connect() as db:
+            self._acquire_migration_lock(db)
             db.execute(
                 "CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at DOUBLE PRECISION NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()))"
             )
