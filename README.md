@@ -1,7 +1,7 @@
 # TrustKernel
 
 **Runtime Security & Authorization Control Plane for Autonomous AI Agents**  
-Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.x
+Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.10
 
 TrustKernel sits on the execution path between autonomous AI agents and their tools. It evaluates identity, workspace scope, intent, tool provenance, information-flow labels, policy, risk and consequences **before execution**, then returns one of five deterministic outcomes:
 
@@ -28,6 +28,7 @@ It is not positioned as a prompt filter. TrustKernel is a runtime authorization,
 - Packageable Python guard SDK with lightweight LangChain/LangGraph/AutoGen/MCP integration guards
 - Six-scenario Judge Mode
 - Non-root Docker runtime, production Compose profile and machine-checkable deployment-readiness gate
+- Unified fail-closed judge rehearsal, guarded offline demo reseed and startup diagnostics
 
 ## One-command judge startup
 
@@ -48,7 +49,18 @@ Both launchers create/reuse the backend virtual environment, install dependencie
 
 Open `http://127.0.0.1:8000`.
 
-For the exact hackathon rehearsal path, use [`docs/JUDGE_RUNBOOK.md`](docs/JUDGE_RUNBOOK.md).
+For the exact hackathon rehearsal path, use [`docs/JUDGE_RUNBOOK.md`](docs/JUDGE_RUNBOOK.md). For the shortest judge-facing talking points, use [`docs/JUDGE_CHEATSHEET.md`](docs/JUDGE_CHEATSHEET.md).
+
+## Canonical rehearsal
+
+Before a judge demo or submission checkpoint, run the same fail-closed coordinator used by CI:
+
+```bash
+cd backend
+python rehearsal.py
+```
+
+This coordinates startup diagnostics, the full pytest suite, deterministic benchmark regression checks, Judge Mode and audit-chain verification. Production-profile configuration additionally runs `deployment_check.py` in CI.
 
 ## Manual development run
 
@@ -69,6 +81,7 @@ cd backend
 pytest -q
 python benchmark.py
 python judge_check.py
+python rehearsal.py
 ```
 
 Production-profile configurations can additionally run:
@@ -77,9 +90,18 @@ Production-profile configurations can additionally run:
 python deployment_check.py
 ```
 
-CI runs the full tests, deterministic regression benchmark, Judge Mode preflight and production deployment-readiness gate before stable checkpoints are merged to `main`.
+CI runs the unified rehearsal plus the production deployment-readiness gate before stable checkpoints are merged to `main`.
 
 **Claims discipline:** bundled/synthetic/imported benchmark and Judge Mode results are deterministic regression/evaluation evidence. They are **not** production security accuracy, certification, universal exploit coverage, or a guarantee that every real-world attack will be blocked.
+
+## Python SDK
+
+```bash
+python -m pip install ./sdk
+python examples/sdk_guard_quickstart.py
+```
+
+Use `TrustKernelClient.execute_guarded(...)` to make the authorization decision before invoking the real tool executor. See [`sdk/README.md`](sdk/README.md).
 
 ## Branch workflow
 
@@ -94,6 +116,8 @@ Changes are developed on `trustkernel-dev`, validated by CI, proposed to `main` 
 
 Useful docs:
 
+- [`docs/JUDGE_CHEATSHEET.md`](docs/JUDGE_CHEATSHEET.md)
+- [`docs/JUDGE_ARCHITECTURE.md`](docs/JUDGE_ARCHITECTURE.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/JUDGE_RUNBOOK.md`](docs/JUDGE_RUNBOOK.md)
 - [`docs/HACKATHON_PITCH.md`](docs/HACKATHON_PITCH.md)
