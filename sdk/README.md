@@ -61,6 +61,6 @@ Framework helpers in `trustkernel.frameworks` and `trustkernel.integrations` kee
 
 ## Stability
 
-Package version: **1.4.20 alpha**.
+Package version: **1.4.21 alpha**.
 
 This package is alpha software. Bundled, synthetic and imported benchmark results in this repository are regression/evaluation evidence and must not be represented as production security accuracy, certification or universal attack coverage.
