@@ -21,6 +21,7 @@ CRITICAL_ASSETS = (
     "backend/app/bootstrap.py",
     "backend/app/v14_api.py",
     "backend/app/benchmarks/adapter.py",
+    "backend/app/benchmarks/agentdojo_native.py",
     "backend/app/services/http_security.py",
     "backend/app/services/postgres_storage.py",
     "backend/app/services/quotas.py",
@@ -45,6 +46,7 @@ CRITICAL_ASSETS = (
     "backend/tests/test_v1425_http_boundary.py",
     "backend/tests/test_v1426_cors_boundary.py",
     "backend/tests/test_v1427_hsts_boundary.py",
+    "backend/tests/test_v1428_agentdojo_native.py",
     "docs/adr/ADR-007-v141-production-persistence.md",
     "docs/adr/ADR-012-v1418-otel-production-hardening.md",
     "docs/adr/ADR-013-v1421-workload-envelope-verification.md",
@@ -52,6 +54,7 @@ CRITICAL_ASSETS = (
     "docs/adr/ADR-015-v1425-trusted-host-boundary.md",
     "docs/adr/ADR-016-v1426-production-cors-boundary.md",
     "docs/adr/ADR-017-v1427-production-hsts-boundary.md",
+    "docs/adr/ADR-018-v1428-agentdojo-native-evidence.md",
     "docs/JUDGE_RUNBOOK.md",
     "docs/JUDGE_CHEATSHEET.md",
     "docs/JUDGE_ARCHITECTURE.md",
@@ -86,7 +89,7 @@ def build_manifest() -> dict:
         assets.append({"path": relative, "sha256": _sha256(path), "size_bytes": path.stat().st_size})
 
     return {
-        "schema": "trustkernel.submission-manifest.v14",
+        "schema": "trustkernel.submission-manifest.v15",
         "version": version,
         "algorithm": "sha256",
         "complete": not missing,
