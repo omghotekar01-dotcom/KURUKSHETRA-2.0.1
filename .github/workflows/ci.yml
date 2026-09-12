@@ -51,11 +51,20 @@ jobs:
         env:
           TRUSTKERNEL_REDIS_TEST_URL: redis://127.0.0.1:6379/0
         run: pytest -q tests/test_v1417_redis_quota_integration.py
-      - name: Run v1.4.18 OTLP hardening regressions
+      - name: Run v1.4.18 OTLP transport regressions
         working-directory: backend
         env:
           TRUSTKERNEL_ENV: development
-        run: pytest -q tests/test_v1418_otel_hardening.py tests/test_v146_deployment_readiness.py tests/test_release_check.py tests/test_submission_manifest.py
+        run: pytest -q tests/test_v1418_otel_hardening.py
+      - name: Run production readiness regressions
+        working-directory: backend
+        run: pytest -q tests/test_v146_deployment_readiness.py
+      - name: Run release integrity regressions
+        working-directory: backend
+        run: pytest -q tests/test_release_check.py
+      - name: Run submission manifest regressions
+        working-directory: backend
+        run: pytest -q tests/test_submission_manifest.py
       - name: Run unified judge rehearsal gate
         working-directory: backend
         env:
