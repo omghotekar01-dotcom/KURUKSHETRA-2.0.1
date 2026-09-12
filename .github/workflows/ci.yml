@@ -38,6 +38,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Build and validate Python SDK distribution
+        run: |
+          python -m pip install "build>=1.2,<2" "twine>=6,<7"
+          python -m build sdk
+          python -m twine check sdk/dist/*
+          python -m pip install --force-reinstall sdk/dist/*.whl
+          python - <<'PY'
+          from importlib.metadata import version
+          from importlib.resources import files
+          import trustkernel
+
+          assert version("trustkernel-sdk") == "1.4.22"
+          assert files("trustkernel").joinpath("py.typed").is_file()
+          assert hasattr(trustkernel, "TrustKernelClient")
+          print("TrustKernel SDK packaged artifact smoke passed")
+          PY
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -r requirements.txt
