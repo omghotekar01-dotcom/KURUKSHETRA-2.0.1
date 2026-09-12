@@ -51,6 +51,11 @@ jobs:
         env:
           TRUSTKERNEL_REDIS_TEST_URL: redis://127.0.0.1:6379/0
         run: pytest -q tests/test_v1417_redis_quota_integration.py
+      - name: Run v1.4.18 OTLP hardening regressions
+        working-directory: backend
+        env:
+          TRUSTKERNEL_ENV: development
+        run: pytest -q tests/test_v1418_otel_hardening.py tests/test_v146_deployment_readiness.py tests/test_release_check.py tests/test_submission_manifest.py
       - name: Run unified judge rehearsal gate
         working-directory: backend
         env:
@@ -76,5 +81,5 @@ jobs:
           TRUSTKERNEL_DATABASE_URL: postgresql://trustkernel:ci-only@postgres:5432/trustkernel
           TRUSTKERNEL_QUOTA_BACKEND: redis
           TRUSTKERNEL_REDIS_URL: rediss://redis.internal.example:6379/0
-          OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+          OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: https://otel-collector.example/v1/traces
         run: python deployment_check.py > /tmp/trustkernel-production-readiness.json
