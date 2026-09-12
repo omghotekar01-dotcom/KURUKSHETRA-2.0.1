@@ -7,7 +7,7 @@ def test_release_check_is_green_for_repository_checkpoint():
     result = release_check.run()
     assert result["passed"] is True
     assert result["status"] == "release-ready"
-    assert result["version"] == "1.4.18"
+    assert result["version"] == "1.4.19"
     assert result["schema"] == "trustkernel.release-check.v8"
     assert all(check["passed"] for check in result["checks"])
 
