@@ -44,4 +44,4 @@ def test_pitch_assets_are_part_of_submission_manifest_contract() -> None:
     manifest_source = _read("backend/submission_manifest.py")
     assert '"docs/FINAL_PITCH_ASSETS.md"' in manifest_source
     assert '"backend/tests/test_v1423_pitch_assets.py"' in manifest_source
-    assert '"trustkernel.submission-manifest.v12"' in manifest_source
+    assert '"trustkernel.submission-manifest.v13"' in manifest_source
