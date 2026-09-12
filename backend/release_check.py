@@ -6,6 +6,7 @@ import tomllib
 from pathlib import Path
 
 import submission_manifest
+import supply_chain_check
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -15,6 +16,7 @@ REQUIRED_ASSETS = (
     "start.bat",
     "start.sh",
     "docker-compose.production.yml",
+    ".github/workflows/supply-chain.yml",
     "docs/JUDGE_RUNBOOK.md",
     "docs/JUDGE_CHEATSHEET.md",
     "docs/JUDGE_ARCHITECTURE.md",
@@ -23,6 +25,7 @@ REQUIRED_ASSETS = (
     "examples/sdk_guard_quickstart.py",
     "sdk/pyproject.toml",
     "backend/submission_manifest.py",
+    "backend/supply_chain_check.py",
 )
 
 CLAIMS_DISCIPLINE_FRAGMENT = "not** production security accuracy"
@@ -97,6 +100,15 @@ def run() -> dict:
         "missing_secret_guards": missing_secret_guards,
     })
 
+    supply_chain = supply_chain_check.run()
+    checks.append({
+        "name": "supply_chain_declarations",
+        "passed": supply_chain["passed"],
+        "requirements_sha256": supply_chain["sha256"],
+        "direct_component_count": supply_chain["direct_component_count"],
+        "violations": supply_chain["violations"],
+    })
+
     manifest = submission_manifest.build_manifest()
     checks.append({
         "name": "submission_manifest",
@@ -108,12 +120,12 @@ def run() -> dict:
 
     passed = all(check["passed"] for check in checks)
     return {
-        "schema": "trustkernel.release-check.v2",
+        "schema": "trustkernel.release-check.v3",
         "version": version or None,
         "passed": passed,
         "status": "release-ready" if passed else "blocked",
         "checks": checks,
-        "evidence_note": "This gate checks release consistency and submission hygiene; it is not a security certification.",
+        "evidence_note": "This gate checks release consistency, dependency declaration hygiene and submission posture; known-vulnerability scanning is a separate CI gate and none of these checks is a security certification.",
     }
 
 
