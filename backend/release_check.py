@@ -19,7 +19,7 @@ REQUIRED_ASSETS = (
     "backend/tests/test_v1418_otel_hardening.py", "docs/adr/ADR-007-v141-production-persistence.md",
     "docs/adr/ADR-012-v1418-otel-production-hardening.md", "docs/JUDGE_RUNBOOK.md", "docs/JUDGE_CHEATSHEET.md",
     "docs/JUDGE_ARCHITECTURE.md", "docs/HACKATHON_PITCH.md", "docs/EVALUATION.md",
-    "examples/sdk_guard_quickstart.py", "sdk/pyproject.toml", "backend/submission_manifest.py",
+    "examples/sdk_guard_quickstart.py", "sdk/README.md", "sdk/pyproject.toml", "backend/submission_manifest.py",
     "backend/supply_chain_check.py",
 )
 
@@ -93,8 +93,15 @@ def run() -> dict:
     version = _read("VERSION").strip() if (ROOT / "VERSION").is_file() else ""
     sdk_version = _sdk_version() if (ROOT / "sdk/pyproject.toml").is_file() else ""
     readme = _read("README.md") if (ROOT / "README.md").is_file() else ""
+    sdk_readme = _read("sdk/README.md") if (ROOT / "sdk/README.md").is_file() else ""
     readme_match = re.search(r"Startup MVP v(\d+\.\d+\.\d+)", readme)
-    versions = {"VERSION": version, "sdk": sdk_version, "README": readme_match.group(1) if readme_match else ""}
+    sdk_readme_match = re.search(r"Package version:\s*\*\*(\d+\.\d+\.\d+) alpha\*\*", sdk_readme)
+    versions = {
+        "VERSION": version,
+        "sdk": sdk_version,
+        "README": readme_match.group(1) if readme_match else "",
+        "sdk/README": sdk_readme_match.group(1) if sdk_readme_match else "",
+    }
     checks.append({"name": "version_coherence", "passed": bool(version) and len(set(versions.values())) == 1, "versions": versions})
 
     bootstrap = _read("backend/app/bootstrap.py") if (ROOT / "backend/app/bootstrap.py").is_file() else ""
