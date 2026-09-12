@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from typing import Mapping
 from urllib.parse import urlparse
 
-from .http_security import host_header_restricted
+from .http_security import cors_origin_restricted, cors_origins_https, host_header_restricted
 
 
 _TRUE = {"1", "true", "yes", "on"}
@@ -62,8 +62,8 @@ def assess_production_readiness(env: Mapping[str, str]) -> ReadinessReport:
     add("policy-approval-required", _enabled(env, "TRUSTKERNEL_REQUIRE_POLICY_APPROVAL"), "Policy activation must require approval.")
     add("four-eyes-enabled", _enabled(env, "TRUSTKERNEL_POLICY_FOUR_EYES"), "Four-eyes governance must remain enabled.")
 
-    cors = env.get("TRUSTKERNEL_CORS_ORIGINS", "").strip()
-    add("cors-restricted", bool(cors) and cors != "*" and "*" not in {part.strip() for part in cors.split(",")}, "CORS origins must be an explicit allow-list, never wildcard.")
+    add("cors-restricted", cors_origin_restricted(env), "CORS origins must be explicit absolute HTTP(S) origins with no wildcard, credentials, path, query, or fragment.")
+    add("cors-https-only", cors_origins_https(env), "Production browser origins must use HTTPS; plain HTTP origins remain available only for local/demo profiles.")
     add(
         "host-header-restricted",
         host_header_restricted(env),
