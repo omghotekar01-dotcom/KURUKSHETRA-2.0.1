@@ -18,19 +18,11 @@ jobs:
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -r requirements.txt
-      - name: Run tests
+      - name: Run unified judge rehearsal gate
         working-directory: backend
         env:
           TRUSTKERNEL_ENV: development
-        run: pytest -q
-      - name: Run deterministic regression benchmark
-        working-directory: backend
-        run: python benchmark.py > /tmp/trustkernel-benchmark.json
-      - name: Run Judge Mode regression gate
-        working-directory: backend
-        env:
-          TRUSTKERNEL_ENV: development
-        run: python judge_check.py > /tmp/trustkernel-judge-preflight.json
+        run: python rehearsal.py --iterations 3 > /tmp/trustkernel-rehearsal.json
       - name: Validate production deployment gate
         working-directory: backend
         env:

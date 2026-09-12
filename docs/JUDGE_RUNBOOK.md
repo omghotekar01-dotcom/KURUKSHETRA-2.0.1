@@ -2,6 +2,32 @@
 
 This is the shortest reliable demo path for the hackathon backup project.
 
+## Canonical rehearsal command
+
+Before opening the UI for a judge or before submission, run exactly this:
+
+```bash
+cd backend
+python rehearsal.py
+```
+
+The rehearsal is fail-closed and runs, in order:
+
+1. startup/environment diagnostics;
+2. the full pytest regression suite;
+3. the deterministic bundled benchmark regression gate; and
+4. the six-scenario Judge Mode + audit-chain integrity gate.
+
+A successful run returns top-level `"passed": true` and `"status": "ready"`.
+
+For a faster smoke check that intentionally skips pytest:
+
+```bash
+python rehearsal.py --skip-tests --iterations 1
+```
+
+Do **not** use the smoke form as submission evidence; the full command is the canonical rehearsal gate and is also exercised by CI.
+
 ## One-command startup
 
 ### Windows
@@ -48,7 +74,7 @@ The preflight verifies:
 
 A failed diagnostic or preflight exits non-zero and prevents the launcher from presenting a broken demo as healthy.
 
-## Re-run the preflight without starting the server
+## Re-run only the Judge Mode preflight
 
 ```bash
 cd backend
@@ -64,25 +90,18 @@ Expected top-level result:
 }
 ```
 
-## Full rehearsal gate
+## Production-profile validation
 
-Before submission or a judge rehearsal, run:
+Production readiness stays a separate gate because the judge/offline rehearsal intentionally uses the SQLite-first development profile while production requires stronger configuration such as PostgreSQL and external identity settings.
+
+With the required production environment configured, run:
 
 ```bash
 cd backend
-pytest -q
-python diagnostics.py
-python benchmark.py
-python judge_check.py
-```
-
-For a production-profile configuration, also run:
-
-```bash
 python deployment_check.py
 ```
 
-The production readiness command is expected to fail closed when mandatory production controls are missing.
+The production readiness command is expected to fail closed when mandatory controls are absent or unsafe values are configured.
 
 ## Demo order
 
@@ -117,9 +136,11 @@ It deliberately refuses PostgreSQL. Never use a judge-demo reset procedure again
 
 If the internet or external identity provider is unavailable, use the default local SQLite + local/demo identity path and explain that OIDC support is an optional production integration. The core runtime, Judge Mode, Policy Studio data, incident evidence, audit chain, and bundled regression benchmark are designed to remain demonstrable offline.
 
-If PostgreSQL is unavailable during a hackathon demo, do not modify the production profile. Restart the judge demo with the default SQLite environment and rerun `python diagnostics.py` followed by `python judge_check.py`.
+If PostgreSQL is unavailable during a hackathon demo, do not modify the production profile. Restart the judge demo with the default SQLite environment and rerun `python rehearsal.py`.
 
-If local demo state is corrupted, use the guarded reseed command above, then rerun diagnostics and preflight before reopening the UI.
+If local demo state is corrupted, use the guarded reseed command above, then rerun `python rehearsal.py` before reopening the UI.
+
+If the default API port is occupied, free port 8000 and rerun the rehearsal rather than changing ports during the live demo unless absolutely necessary.
 
 ## Claims discipline
 
