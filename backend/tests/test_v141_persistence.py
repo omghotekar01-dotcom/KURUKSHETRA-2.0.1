@@ -4,7 +4,13 @@ import os
 
 import pytest
 
-from app.services.postgres_storage import MIGRATIONS, _postgres_sql
+from app.services.postgres_storage import (
+    MIGRATIONS,
+    MIGRATION_LOCK_KEY,
+    MAX_MIGRATION_LOCK_TIMEOUT_MS,
+    _migration_lock_timeout_ms,
+    _postgres_sql,
+)
 from app.services.persistence import persistence_status
 
 
@@ -51,3 +57,29 @@ def test_postgres_backend_requires_database_url(monkeypatch: pytest.MonkeyPatch)
 
     with pytest.raises(RuntimeError, match="TRUSTKERNEL_DATABASE_URL"):
         PostgresStore()
+
+
+def test_migration_lock_key_is_stable_signed_bigint() -> None:
+    assert isinstance(MIGRATION_LOCK_KEY, int)
+    assert -(2**63) <= MIGRATION_LOCK_KEY < 2**63
+    assert MIGRATION_LOCK_KEY == 2170754061135335058
+
+
+def test_migration_lock_timeout_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("TRUSTKERNEL_MIGRATION_LOCK_TIMEOUT_MS", raising=False)
+    assert _migration_lock_timeout_ms() == 15_000
+
+    monkeypatch.setenv("TRUSTKERNEL_MIGRATION_LOCK_TIMEOUT_MS", "25000")
+    assert _migration_lock_timeout_ms() == 25_000
+
+    monkeypatch.setenv("TRUSTKERNEL_MIGRATION_LOCK_TIMEOUT_MS", "999")
+    with pytest.raises(RuntimeError, match="between 1000"):
+        _migration_lock_timeout_ms()
+
+    monkeypatch.setenv("TRUSTKERNEL_MIGRATION_LOCK_TIMEOUT_MS", str(MAX_MIGRATION_LOCK_TIMEOUT_MS + 1))
+    with pytest.raises(RuntimeError, match="between 1000"):
+        _migration_lock_timeout_ms()
+
+    monkeypatch.setenv("TRUSTKERNEL_MIGRATION_LOCK_TIMEOUT_MS", "not-a-number")
+    with pytest.raises(RuntimeError, match="must be an integer"):
+        _migration_lock_timeout_ms()

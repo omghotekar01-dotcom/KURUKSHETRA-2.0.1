@@ -13,12 +13,17 @@ ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_ASSETS = (
     "README.md",
     "VERSION",
+    ".env.example",
     "start.bat",
     "start.sh",
     "docker-compose.production.yml",
+    ".github/workflows/ci.yml",
     ".github/workflows/supply-chain.yml",
     "frontend/index.html",
     "backend/app/bootstrap.py",
+    "backend/app/services/postgres_storage.py",
+    "backend/tests/test_v1416_postgres_integration.py",
+    "docs/adr/ADR-007-v141-production-persistence.md",
     "docs/JUDGE_RUNBOOK.md",
     "docs/JUDGE_CHEATSHEET.md",
     "docs/JUDGE_ARCHITECTURE.md",
@@ -60,6 +65,19 @@ REQUIRED_ATTESTATION_MARKERS = (
     "subject-path: trustkernel-submission-manifest.json",
     "sbom-path: backend/trustkernel-sbom.cdx.json",
     "github.event_name == 'push' && github.ref == 'refs/heads/main'",
+)
+REQUIRED_POSTGRES_MIGRATION_MARKERS = (
+    'MIGRATION_LOCK_NAMESPACE = "trustkernel.schema.migrations"',
+    "TRUSTKERNEL_MIGRATION_LOCK_TIMEOUT_MS",
+    "pg_advisory_xact_lock(?)",
+    "schema_migrations",
+    "database migration checksum drift",
+)
+REQUIRED_POSTGRES_CI_MARKERS = (
+    "image: postgres:16",
+    "pg_isready -U trustkernel -d trustkernel",
+    "TRUSTKERNEL_POSTGRES_TEST_URL",
+    "pytest -q tests/test_v1416_postgres_integration.py",
 )
 
 
@@ -129,6 +147,18 @@ def run() -> dict:
         "missing_secret_guards": missing_secret_guards,
     })
 
+    postgres_storage = _read("backend/app/services/postgres_storage.py") if (ROOT / "backend/app/services/postgres_storage.py").is_file() else ""
+    ci_workflow = _read(".github/workflows/ci.yml") if (ROOT / ".github/workflows/ci.yml").is_file() else ""
+    missing_migration_markers = [marker for marker in REQUIRED_POSTGRES_MIGRATION_MARKERS if marker not in postgres_storage]
+    missing_postgres_ci_markers = [marker for marker in REQUIRED_POSTGRES_CI_MARKERS if marker not in ci_workflow]
+    checks.append({
+        "name": "postgres_migration_coordination",
+        "passed": not missing_migration_markers and not missing_postgres_ci_markers,
+        "missing_migration_markers": missing_migration_markers,
+        "missing_ci_markers": missing_postgres_ci_markers,
+        "detail": "Production PostgreSQL migrations remain checksum-pinned, transaction-lock coordinated with a bounded wait, and exercised against a live PostgreSQL service in CI.",
+    })
+
     supply_chain = supply_chain_check.run()
     checks.append({
         "name": "supply_chain_declarations",
@@ -158,12 +188,12 @@ def run() -> dict:
 
     passed = all(check["passed"] for check in checks)
     return {
-        "schema": "trustkernel.release-check.v5",
+        "schema": "trustkernel.release-check.v6",
         "version": version or None,
         "passed": passed,
         "status": "release-ready" if passed else "blocked",
         "checks": checks,
-        "evidence_note": "This gate checks release consistency, canonical runtime version binding, dependency declaration hygiene, configured artifact-attestation posture and submission integrity; known-vulnerability scanning and GitHub's cryptographic attestation issuance/verification are separate CI/platform controls, and none of these checks is a security certification.",
+        "evidence_note": "This gate checks release consistency, canonical runtime version binding, PostgreSQL migration-coordination declarations and live-database CI coverage, dependency declaration hygiene, configured artifact-attestation posture and submission integrity; known-vulnerability scanning and GitHub's cryptographic attestation issuance/verification are separate CI/platform controls, and none of these checks is a security certification.",
     }
 
 
