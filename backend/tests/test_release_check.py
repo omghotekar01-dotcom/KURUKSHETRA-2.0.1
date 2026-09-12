@@ -7,8 +7,8 @@ def test_release_check_is_green_for_repository_checkpoint():
     result = release_check.run()
     assert result["passed"] is True
     assert result["status"] == "release-ready"
-    assert result["version"] == "1.4.12"
-    assert result["schema"] == "trustkernel.release-check.v2"
+    assert result["version"] == "1.4.13"
+    assert result["schema"] == "trustkernel.release-check.v3"
     assert all(check["passed"] for check in result["checks"])
 
 
@@ -20,5 +20,6 @@ def test_release_check_reports_expected_gate_names():
         "version_coherence",
         "claims_discipline",
         "production_compose_posture",
+        "supply_chain_declarations",
         "submission_manifest",
     }

@@ -1,7 +1,7 @@
 # TrustKernel
 
 **Runtime Security & Authorization Control Plane for Autonomous AI Agents**  
-Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.12
+Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.13
 
 TrustKernel sits on the execution path between autonomous AI agents and their tools. It evaluates identity, workspace scope, intent, tool provenance, information-flow labels, policy, risk and consequences **before execution**, then returns one of five deterministic outcomes:
 
@@ -30,6 +30,7 @@ It is not positioned as a prompt filter. TrustKernel is a runtime authorization,
 - Non-root Docker runtime, production Compose profile and machine-checkable deployment-readiness gate
 - Unified fail-closed judge rehearsal, release-integrity gate, guarded offline demo reseed and startup diagnostics
 - Deterministic SHA-256 submission manifest for byte-level identity of critical release assets
+- Supply-chain assurance with exact direct-dependency pins, blocking CI vulnerability auditing, CycloneDX SBOM evidence, and supplementary GitHub dependency review when the repository Dependency graph feature is available
 
 ## One-command judge startup
 
@@ -89,6 +90,7 @@ uvicorn app.bootstrap:app --reload
 ```bash
 cd backend
 pytest -q
+python supply_chain_check.py
 python release_check.py
 python submission_manifest.py
 python benchmark.py
@@ -102,7 +104,7 @@ Production-profile configurations can additionally run:
 python deployment_check.py
 ```
 
-CI runs the unified rehearsal plus the production deployment-readiness gate before stable checkpoints are merged to `main`.
+CI runs the unified rehearsal plus the production deployment-readiness gate before stable checkpoints are merged to `main`. The separate supply-chain workflow also runs blocking `pip-audit` known-vulnerability scanning and emits a CycloneDX JSON SBOM artifact. On pull requests it additionally attempts GitHub's native dependency-review action; that supplementary check requires the repository Dependency graph feature and is non-blocking when GitHub reports the feature unavailable. The offline `supply_chain_check.py` validates declaration hygiene; vulnerability findings come from the CI audit and can change as advisory databases evolve.
 
 **Claims discipline:** bundled/synthetic/imported benchmark and Judge Mode results are deterministic regression/evaluation evidence. They are **not** production security accuracy, certification, universal exploit coverage, or a guarantee that every real-world attack will be blocked.
 
