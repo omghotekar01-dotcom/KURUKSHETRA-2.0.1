@@ -7,8 +7,8 @@ def test_release_check_is_green_for_repository_checkpoint():
     result = release_check.run()
     assert result["passed"] is True
     assert result["status"] == "release-ready"
-    assert result["version"] == "1.4.16"
-    assert result["schema"] == "trustkernel.release-check.v6"
+    assert result["version"] == "1.4.17"
+    assert result["schema"] == "trustkernel.release-check.v7"
     assert all(check["passed"] for check in result["checks"])
 
 
@@ -22,6 +22,7 @@ def test_release_check_reports_expected_gate_names():
         "claims_discipline",
         "production_compose_posture",
         "postgres_migration_coordination",
+        "redis_distributed_quota",
         "supply_chain_declarations",
         "artifact_attestation_workflow",
         "submission_manifest",
@@ -41,3 +42,12 @@ def test_postgres_migration_coordination_gate_is_green():
     assert check["passed"] is True
     assert check["missing_migration_markers"] == []
     assert check["missing_ci_markers"] == []
+
+
+def test_redis_distributed_quota_gate_is_green():
+    result = release_check.run()
+    check = next(item for item in result["checks"] if item["name"] == "redis_distributed_quota")
+    assert check["passed"] is True
+    assert check["missing_backend_markers"] == []
+    assert check["missing_ci_markers"] == []
+    assert check["bootstrap_configured"] is True
