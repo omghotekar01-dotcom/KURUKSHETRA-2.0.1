@@ -1,7 +1,7 @@
 # TrustKernel
 
 **Runtime Security & Authorization Control Plane for Autonomous AI Agents**  
-Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.17
+Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.18
 
 TrustKernel sits on the execution path between autonomous AI agents and their tools. It evaluates identity, workspace scope, intent, tool provenance, information-flow labels, policy, risk and consequences **before execution**, returning deterministic `ALLOW`, `ALLOW_WITH_LOG`, `REWRITE`, `REQUIRE_APPROVAL`, or `BLOCK` outcomes.
 
@@ -13,7 +13,7 @@ TrustKernel sits on the execution path between autonomous AI agents and their to
 - Runtime action graph, taint/provenance tracking, deterministic policy/risk evaluation, safe-plan repair, incidents and audit evidence.
 - SQLite offline mode plus PostgreSQL persistence with checksum-pinned migrations, advisory-lock coordination and live PostgreSQL CI.
 - **First-party Redis distributed quota backend** using atomic Lua read/decide/write, Redis server time, cluster-safe workspace keys, bounded client timeouts and fail-closed startup. In-memory quota enforcement remains the offline/demo default.
-- Native OpenTelemetry exporter option, visual Policy Studio, incident causal explorer, AgentDojo-style benchmark importer/report and packageable Python SDK.
+- Native OpenTelemetry exporter option with canonical runtime version binding, standard OTLP endpoint precedence and HTTPS enforcement for configured production export; visual Policy Studio, incident causal explorer, AgentDojo-style benchmark importer/report and packageable Python SDK.
 - Non-root container runtime, production deployment-readiness gate, deterministic release manifest, SBOM/vulnerability CI and GitHub provenance attestations.
 - Six-scenario Judge Mode plus a unified rehearsal command.
 
@@ -52,6 +52,16 @@ TRUSTKERNEL_REDIS_URL=rediss://redis.example:6379/0
 ```
 
 `rediss://` is required by the production-readiness gate; local/offline development continues to default to the in-memory backend.
+
+Production telemetry should use either the trace-specific OTLP endpoint or the standard global OTLP endpoint over HTTPS:
+
+```text
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://otel-collector.example/v1/traces
+# or
+OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector.example
+```
+
+For the global endpoint, TrustKernel follows the OTLP/HTTP convention and appends `/v1/traces`. Plain HTTP collectors remain supported for local/demo use, but configured plaintext OTLP export is rejected when `TRUSTKERNEL_ENV=production`.
 
 ## Python SDK
 
