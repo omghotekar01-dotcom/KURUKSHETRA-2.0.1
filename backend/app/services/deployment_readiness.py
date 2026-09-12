@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from typing import Mapping
 from urllib.parse import urlparse
 
-from .http_security import cors_origin_restricted, cors_origins_https, host_header_restricted
+from .http_security import cors_origin_restricted, cors_origins_https, host_header_restricted, hsts_production_ready
 
 
 _TRUE = {"1", "true", "yes", "on"}
@@ -68,6 +68,11 @@ def assess_production_readiness(env: Mapping[str, str]) -> ReadinessReport:
         "host-header-restricted",
         host_header_restricted(env),
         "TRUSTKERNEL_ALLOWED_HOSTS must be an explicit Host-header allow-list with no wildcard in production.",
+    )
+    add(
+        "hsts-long-lived",
+        hsts_production_ready(env),
+        "Production HSTS max-age must be at least 31536000 seconds. includeSubDomains remains an explicit deployment choice and preload is never enabled automatically.",
     )
 
     for key in ("TRUSTKERNEL_SESSION_SIGNING_KEY", "TRUSTKERNEL_A2A_SIGNING_KEY", "TRUSTKERNEL_POLICY_SIGNING_KEY", "TRUSTKERNEL_EVIDENCE_SIGNING_KEY"):
