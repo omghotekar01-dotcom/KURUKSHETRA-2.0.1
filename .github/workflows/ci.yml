@@ -10,6 +10,20 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: trustkernel
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_DB: trustkernel
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trustkernel -d trustkernel"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -18,6 +32,11 @@ jobs:
       - name: Install backend dependencies
         working-directory: backend
         run: pip install -r requirements.txt
+      - name: Run live PostgreSQL persistence integration
+        working-directory: backend
+        env:
+          TRUSTKERNEL_POSTGRES_TEST_URL: postgresql://trustkernel:ci-only@127.0.0.1:5432/trustkernel
+        run: pytest -q tests/test_v1416_postgres_integration.py
       - name: Run unified judge rehearsal gate
         working-directory: backend
         env:
