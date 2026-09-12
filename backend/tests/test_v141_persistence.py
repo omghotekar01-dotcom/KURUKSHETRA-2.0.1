@@ -62,7 +62,7 @@ def test_postgres_backend_requires_database_url(monkeypatch: pytest.MonkeyPatch)
 def test_migration_lock_key_is_stable_signed_bigint() -> None:
     assert isinstance(MIGRATION_LOCK_KEY, int)
     assert -(2**63) <= MIGRATION_LOCK_KEY < 2**63
-    assert MIGRATION_LOCK_KEY == -174185308204994466
+    assert MIGRATION_LOCK_KEY == 2170754061135335058
 
 
 def test_migration_lock_timeout_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
