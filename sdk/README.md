@@ -8,6 +8,18 @@ A lightweight, framework-agnostic client and guard layer for routing agent/tool 
 python -m pip install ./sdk
 ```
 
+For release-style validation, build the wheel and source distribution first:
+
+```bash
+cd sdk
+python -m pip install "build>=1.2,<2" "twine>=6,<7"
+python -m build
+python -m twine check dist/*
+python -m pip install --force-reinstall dist/*.whl
+```
+
+TrustKernel CI performs this build/check/install flow so SDK validation exercises the packaged artifact rather than only the source checkout.
+
 ## Minimal decision request
 
 ```python
@@ -51,7 +63,7 @@ result = client.execute_guarded(
 print(result.decision.decision, result.executed)
 ```
 
-A runnable example is available at [`../examples/sdk_guard_quickstart.py`](../examples/sdk_guard_quickstart.py).
+A runnable repository example is available at [`../examples/sdk_guard_quickstart.py`](../examples/sdk_guard_quickstart.py).
 
 Framework helpers in `trustkernel.frameworks` and `trustkernel.integrations` keep LangChain/LangGraph/AutoGen/MCP integration thin: TrustKernel remains the enforcement point rather than a framework-specific policy fork.
 
@@ -59,8 +71,12 @@ Framework helpers in `trustkernel.frameworks` and `trustkernel.integrations` kee
 
 `TrustKernelClient` supports an API key (`X-TrustKernel-Key`) and/or bearer session token. Production callers should use the identity mechanism configured by the runtime rather than relying on development actor headers.
 
+## Packaging contract
+
+The SDK is a PEP 517/`pyproject.toml` package built with Hatchling. Release CI requires both a wheel and source distribution, runs `twine check`, installs the generated wheel into the CI environment, verifies `import trustkernel`, verifies the installed distribution version, and confirms the `py.typed` marker is shipped for typed consumers.
+
 ## Stability
 
-Package version: **1.4.21 alpha**.
+Package version: **1.4.22 alpha**.
 
 This package is alpha software. Bundled, synthetic and imported benchmark results in this repository are regression/evaluation evidence and must not be represented as production security accuracy, certification or universal attack coverage.
