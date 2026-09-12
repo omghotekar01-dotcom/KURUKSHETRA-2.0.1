@@ -122,7 +122,10 @@ def run() -> dict:
     hardcoded_runtime_versions = re.findall(r'(?:main_module\.VERSION|app\.version)\s*=\s*["\']\d+\.\d+\.\d+["\']', bootstrap)
     hardcoded_ui_versions = re.findall(r"TRUSTKERNEL\s+v\d+\.\d+\.\d+", frontend, flags=re.IGNORECASE)
     hardcoded_v14_capability_versions = re.findall(r'"version"\s*:\s*"\d+\.\d+\.\d+"', v14_api)
-    runtime_binding_ok = all(marker in bootstrap for marker in ('ROOT / "VERSION"', "main_module.VERSION = VERSION", "app.version = VERSION", '@app.get("/api/version"')))
+    runtime_binding_ok = all(
+        marker in bootstrap
+        for marker in ('ROOT / "VERSION"', "main_module.VERSION = VERSION", "app.version = VERSION", '@app.get("/api/version"')
+    )
     v14_binding_ok = all(marker in v14_api for marker in ('ROOT / "VERSION"', "RELEASE_VERSION", '"version": RELEASE_VERSION'))
     checks.append({"name": "runtime_version_binding", "passed": runtime_binding_ok and v14_binding_ok and not hardcoded_runtime_versions and not hardcoded_ui_versions and not hardcoded_v14_capability_versions, "hardcoded_runtime_versions": hardcoded_runtime_versions, "hardcoded_ui_versions": hardcoded_ui_versions, "hardcoded_v14_capability_versions": hardcoded_v14_capability_versions})
 
