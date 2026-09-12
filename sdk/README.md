@@ -12,13 +12,13 @@ For release-style validation, build the wheel and source distribution first:
 
 ```bash
 cd sdk
-python -m pip install "build>=1.2,<2" "twine>=6,<7"
+python -m pip install "build>=1.2,<2" "twine>=7,<8"
 python -m build
 python -m twine check dist/*
 python -m pip install --force-reinstall dist/*.whl
 ```
 
-TrustKernel CI performs this build/check/install flow so SDK validation exercises the packaged artifact rather than only the source checkout.
+TrustKernel CI performs this build/check/install flow so SDK validation exercises the packaged artifact rather than only the source checkout. Twine 7+ is intentional because modern Hatchling releases emit standardized Core Metadata 2.5, whose validation support was added in Twine 7.
 
 ## Minimal decision request
 
