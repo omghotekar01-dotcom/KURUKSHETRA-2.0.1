@@ -52,6 +52,15 @@ REQUIRED_SECRET_GUARDS = (
     "TRUSTKERNEL_OIDC_ISSUER:?set TRUSTKERNEL_OIDC_ISSUER",
     "TRUSTKERNEL_OIDC_AUDIENCE:?set TRUSTKERNEL_OIDC_AUDIENCE",
 )
+REQUIRED_ATTESTATION_MARKERS = (
+    "id-token: write",
+    "attestations: write",
+    "python backend/submission_manifest.py > trustkernel-submission-manifest.json",
+    "uses: actions/attest@v4",
+    "subject-path: trustkernel-submission-manifest.json",
+    "sbom-path: backend/trustkernel-sbom.cdx.json",
+    "github.event_name == 'push' && github.ref == 'refs/heads/main'",
+)
 
 
 def _read(path: str) -> str:
@@ -129,6 +138,15 @@ def run() -> dict:
         "violations": supply_chain["violations"],
     })
 
+    workflow = _read(".github/workflows/supply-chain.yml") if (ROOT / ".github/workflows/supply-chain.yml").is_file() else ""
+    missing_attestation_markers = [marker for marker in REQUIRED_ATTESTATION_MARKERS if marker not in workflow]
+    checks.append({
+        "name": "artifact_attestation_workflow",
+        "passed": not missing_attestation_markers,
+        "missing_markers": missing_attestation_markers,
+        "detail": "Main-branch supply-chain evidence is configured for GitHub OIDC-backed artifact provenance and SBOM attestation. This verifies origin/integrity when consumers validate the attestation; it does not certify that the software is secure.",
+    })
+
     manifest = submission_manifest.build_manifest()
     checks.append({
         "name": "submission_manifest",
@@ -140,12 +158,12 @@ def run() -> dict:
 
     passed = all(check["passed"] for check in checks)
     return {
-        "schema": "trustkernel.release-check.v4",
+        "schema": "trustkernel.release-check.v5",
         "version": version or None,
         "passed": passed,
         "status": "release-ready" if passed else "blocked",
         "checks": checks,
-        "evidence_note": "This gate checks release consistency, canonical runtime version binding, dependency declaration hygiene and submission posture; known-vulnerability scanning is a separate CI gate and none of these checks is a security certification.",
+        "evidence_note": "This gate checks release consistency, canonical runtime version binding, dependency declaration hygiene, configured artifact-attestation posture and submission integrity; known-vulnerability scanning and GitHub's cryptographic attestation issuance/verification are separate CI/platform controls, and none of these checks is a security certification.",
     }
 
 
