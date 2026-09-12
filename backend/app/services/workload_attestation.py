@@ -281,6 +281,8 @@ def verify_attested_signature_envelope(
     expires_at = int(envelope.get("expires_at"))
     if not purpose or not nonce:
         raise ValueError("purpose and nonce are required")
+    if len(nonce) > 256:
+        raise ValueError("nonce must be at most 256 characters")
     if issued_at > current + max_future_skew:
         raise ValueError("signature envelope issued_at is in the future")
     if expires_at <= current:
@@ -293,8 +295,6 @@ def verify_attested_signature_envelope(
         raise ValueError("signature envelope key_reference mismatch")
     if not hmac.compare_digest(algorithm, verifier.algorithm):
         raise ValueError("signature envelope algorithm mismatch")
-    if nonce_validator is not None and not nonce_validator(nonce):
-        raise ValueError("signature envelope nonce rejected")
 
     message_sha256 = hashlib.sha256(message).hexdigest()
     if not hmac.compare_digest(str(envelope.get("message_sha256") or ""), message_sha256):
@@ -331,6 +331,13 @@ def verify_attested_signature_envelope(
     signature = _b64url_decode(str(envelope.get("signature") or ""))
     if not verifier.verify(binding, signature):
         raise ValueError("signature envelope verification failed")
+
+    # Replay state is consumed only after every structural, digest, attestation,
+    # and cryptographic check succeeds. Invalid forged envelopes therefore
+    # cannot burn a legitimate nonce in a shared replay store.
+    if nonce_validator is not None and not nonce_validator(nonce):
+        raise ValueError("signature envelope nonce rejected")
+
     return {
         "verified": True,
         "version": "trustkernel.workload-signature.v2",
