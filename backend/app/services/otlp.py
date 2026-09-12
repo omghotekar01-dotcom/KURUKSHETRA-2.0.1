@@ -1,11 +1,47 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 import httpx
 
 from .storage import store
+
+
+ROOT = Path(__file__).resolve().parents[3]
+
+
+def _runtime_version() -> str:
+    version_path = ROOT / "VERSION"
+    if not version_path.is_file():
+        return "unknown"
+    return version_path.read_text(encoding="utf-8").strip() or "unknown"
+
+
+def _is_production() -> bool:
+    return os.getenv("TRUSTKERNEL_ENV", "").strip().lower() == "production"
+
+
+def _secure_endpoint(target: str) -> bool:
+    parsed = urlparse(target)
+    return parsed.scheme == "https" and bool(parsed.netloc)
+
+
+def _resolve_native_endpoint(explicit: Optional[str] = None) -> str:
+    if explicit and explicit.strip():
+        return explicit.strip()
+
+    traces_endpoint = os.getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "").strip()
+    if traces_endpoint:
+        return traces_endpoint
+
+    base_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip()
+    if base_endpoint:
+        return f"{base_endpoint.rstrip('/')}/v1/traces"
+
+    return os.getenv("TRUSTKERNEL_OTLP_HTTP_ENDPOINT", "").strip()
 
 
 class OTLPAdapter:
@@ -14,6 +50,9 @@ class OTLPAdapter:
     export_json()/send() preserve the existing offline-friendly OTLP/HTTP JSON
     bridge. send_native() uses the official OpenTelemetry Python SDK/exporter
     when deployments want native SDK semantics and Collector interoperability.
+
+    Plain HTTP remains available for local/demo collectors. In production,
+    configured OTLP endpoints must use HTTPS and export fails closed otherwise.
     """
 
     def export_json(self, workspace_id: Optional[str] = None, limit: int = 500) -> Dict[str, Any]:
@@ -47,13 +86,14 @@ class OTLPAdapter:
                 "endTimeUnixNano": str(int(event["timestamp"] * 1_000_000_000)),
                 "attributes": attrs,
             })
+        version = _runtime_version()
         return {
             "resourceSpans": [{
                 "resource": {"attributes": [
                     {"key": "service.name", "value": {"stringValue": "trustkernel"}},
-                    {"key": "service.version", "value": {"stringValue": "1.4.3"}},
+                    {"key": "service.version", "value": {"stringValue": version}},
                 ]},
-                "scopeSpans": [{"scope": {"name": "trustkernel.security", "version": "1.4.3"}, "spans": spans}],
+                "scopeSpans": [{"scope": {"name": "trustkernel.security", "version": version}, "spans": spans}],
             }],
         }
 
@@ -68,6 +108,14 @@ class OTLPAdapter:
         target = (endpoint or os.getenv("TRUSTKERNEL_OTLP_HTTP_ENDPOINT", "")).strip()
         if not target:
             return {"sent": False, "reason": "otlp_endpoint_not_configured", "spans": 0, "transport": "json-http"}
+        if _is_production() and not _secure_endpoint(target):
+            return {
+                "sent": False,
+                "reason": "otlp_https_required_in_production",
+                "spans": 0,
+                "endpoint": target,
+                "transport": "json-http",
+            }
         headers = {"Content-Type": "application/json"}
         bearer = os.getenv("TRUSTKERNEL_OTLP_BEARER_TOKEN", "").strip()
         if bearer:
@@ -103,17 +151,25 @@ class OTLPAdapter:
     ) -> Dict[str, Any]:
         """Export stored TrustKernel events using the official OTel Python SDK.
 
+        Endpoint resolution follows OTLP precedence: an explicit method argument,
+        then OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, then OTEL_EXPORTER_OTLP_ENDPOINT
+        with /v1/traces appended, then the TrustKernel compatibility endpoint.
+
         The SDK path is opt-in and does not replace the deterministic JSON path.
         A successful return means the SDK force-flush completed; Collector-side
         ingestion/retention remains an external operational concern.
         """
-        target = (
-            endpoint
-            or os.getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "")
-            or os.getenv("TRUSTKERNEL_OTLP_HTTP_ENDPOINT", "")
-        ).strip()
+        target = _resolve_native_endpoint(endpoint)
         if not target:
             return {"sent": False, "reason": "otlp_endpoint_not_configured", "spans": 0, "transport": "otel-sdk"}
+        if _is_production() and not _secure_endpoint(target):
+            return {
+                "sent": False,
+                "reason": "otlp_https_required_in_production",
+                "spans": 0,
+                "endpoint": target,
+                "transport": "otel-sdk",
+            }
 
         try:
             from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
@@ -135,13 +191,14 @@ class OTLPAdapter:
         if bearer:
             headers["Authorization"] = f"Bearer {bearer}"
 
+        version = _runtime_version()
         exporter = OTLPSpanExporter(endpoint=target, headers=headers or None, timeout=timeout)
         provider = TracerProvider(resource=Resource.create({
             "service.name": "trustkernel",
-            "service.version": "1.4.3",
+            "service.version": version,
         }))
         provider.add_span_processor(SimpleSpanProcessor(exporter))
-        tracer = provider.get_tracer("trustkernel.security", "1.4.3")
+        tracer = provider.get_tracer("trustkernel.security", version)
 
         emitted = 0
         try:
