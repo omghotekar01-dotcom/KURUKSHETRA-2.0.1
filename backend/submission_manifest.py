@@ -9,18 +9,23 @@ ROOT = Path(__file__).resolve().parents[1]
 CRITICAL_ASSETS = (
     "README.md",
     "VERSION",
+    ".env.example",
     "start.bat",
     "start.sh",
     "Dockerfile",
     "docker-compose.production.yml",
+    ".github/workflows/ci.yml",
     ".github/workflows/supply-chain.yml",
     "frontend/index.html",
     "backend/app/bootstrap.py",
+    "backend/app/services/postgres_storage.py",
     "backend/requirements.txt",
     "backend/supply_chain_check.py",
     "backend/rehearsal.py",
     "backend/release_check.py",
     "backend/deployment_check.py",
+    "backend/tests/test_v1416_postgres_integration.py",
+    "docs/adr/ADR-007-v141-production-persistence.md",
     "docs/JUDGE_RUNBOOK.md",
     "docs/JUDGE_CHEATSHEET.md",
     "docs/JUDGE_ARCHITECTURE.md",
@@ -59,7 +64,7 @@ def build_manifest() -> dict:
         )
 
     return {
-        "schema": "trustkernel.submission-manifest.v2",
+        "schema": "trustkernel.submission-manifest.v3",
         "version": version,
         "algorithm": "sha256",
         "complete": not missing,
