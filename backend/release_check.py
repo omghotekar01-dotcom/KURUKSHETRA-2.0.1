@@ -1,0 +1,115 @@
+from __future__ import annotations
+
+import json
+import re
+import tomllib
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+REQUIRED_ASSETS = (
+    "README.md",
+    "VERSION",
+    "start.bat",
+    "start.sh",
+    "docker-compose.production.yml",
+    "docs/JUDGE_RUNBOOK.md",
+    "docs/JUDGE_CHEATSHEET.md",
+    "docs/JUDGE_ARCHITECTURE.md",
+    "docs/HACKATHON_PITCH.md",
+    "docs/EVALUATION.md",
+    "examples/sdk_guard_quickstart.py",
+    "sdk/pyproject.toml",
+)
+
+CLAIMS_DISCIPLINE_FRAGMENT = "not** production security accuracy"
+REQUIRED_PRODUCTION_MARKERS = (
+    'TRUSTKERNEL_ENV: production',
+    'TRUSTKERNEL_REQUIRE_API_KEY: "1"',
+    'TRUSTKERNEL_ALLOW_LEGACY_ACTOR_HEADER: "0"',
+    'TRUSTKERNEL_REQUIRE_POLICY_APPROVAL: "1"',
+    'TRUSTKERNEL_POLICY_FOUR_EYES: "1"',
+    'TRUSTKERNEL_OIDC_REQUIRE_HTTPS: "1"',
+    'TRUSTKERNEL_DB_BACKEND: postgres',
+    'read_only: true',
+    '- ALL',
+    '- no-new-privileges:true',
+)
+REQUIRED_SECRET_GUARDS = (
+    "TRUSTKERNEL_POSTGRES_PASSWORD:?set TRUSTKERNEL_POSTGRES_PASSWORD",
+    "TRUSTKERNEL_SESSION_SIGNING_KEY:?set TRUSTKERNEL_SESSION_SIGNING_KEY",
+    "TRUSTKERNEL_A2A_SIGNING_KEY:?set TRUSTKERNEL_A2A_SIGNING_KEY",
+    "TRUSTKERNEL_POLICY_SIGNING_KEY:?set TRUSTKERNEL_POLICY_SIGNING_KEY",
+    "TRUSTKERNEL_EVIDENCE_SIGNING_KEY:?set TRUSTKERNEL_EVIDENCE_SIGNING_KEY",
+    "TRUSTKERNEL_OIDC_ISSUER:?set TRUSTKERNEL_OIDC_ISSUER",
+    "TRUSTKERNEL_OIDC_AUDIENCE:?set TRUSTKERNEL_OIDC_AUDIENCE",
+)
+
+
+def _read(path: str) -> str:
+    return (ROOT / path).read_text(encoding="utf-8")
+
+
+def _sdk_version() -> str:
+    with (ROOT / "sdk/pyproject.toml").open("rb") as handle:
+        return str(tomllib.load(handle)["project"]["version"])
+
+
+def run() -> dict:
+    checks: list[dict] = []
+
+    missing = [path for path in REQUIRED_ASSETS if not (ROOT / path).is_file()]
+    checks.append({
+        "name": "required_submission_assets",
+        "passed": not missing,
+        "missing": missing,
+    })
+
+    version = _read("VERSION").strip() if (ROOT / "VERSION").is_file() else ""
+    sdk_version = _sdk_version() if (ROOT / "sdk/pyproject.toml").is_file() else ""
+    readme = _read("README.md") if (ROOT / "README.md").is_file() else ""
+    readme_match = re.search(r"Startup MVP v(\d+\.\d+\.\d+)", readme)
+    readme_version = readme_match.group(1) if readme_match else ""
+    versions = {"VERSION": version, "sdk": sdk_version, "README": readme_version}
+    checks.append({
+        "name": "version_coherence",
+        "passed": bool(version) and len(set(versions.values())) == 1,
+        "versions": versions,
+    })
+
+    claims_ok = CLAIMS_DISCIPLINE_FRAGMENT in readme
+    checks.append({
+        "name": "claims_discipline",
+        "passed": claims_ok,
+        "detail": "README explicitly distinguishes regression/evaluation evidence from production security accuracy.",
+    })
+
+    compose = _read("docker-compose.production.yml") if (ROOT / "docker-compose.production.yml").is_file() else ""
+    missing_markers = [marker for marker in REQUIRED_PRODUCTION_MARKERS if marker not in compose]
+    missing_secret_guards = [marker for marker in REQUIRED_SECRET_GUARDS if marker not in compose]
+    checks.append({
+        "name": "production_compose_posture",
+        "passed": not missing_markers and not missing_secret_guards,
+        "missing_markers": missing_markers,
+        "missing_secret_guards": missing_secret_guards,
+    })
+
+    passed = all(check["passed"] for check in checks)
+    return {
+        "schema": "trustkernel.release-check.v1",
+        "version": version or None,
+        "passed": passed,
+        "status": "release-ready" if passed else "blocked",
+        "checks": checks,
+        "evidence_note": "This gate checks release consistency and submission hygiene; it is not a security certification.",
+    }
+
+
+def main() -> int:
+    result = run()
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if result["passed"] else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
