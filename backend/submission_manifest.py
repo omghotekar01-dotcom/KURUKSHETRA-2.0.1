@@ -18,6 +18,7 @@ CRITICAL_ASSETS = (
     ".github/workflows/supply-chain.yml",
     "frontend/index.html",
     "backend/app/bootstrap.py",
+    "backend/app/benchmarks/adapter.py",
     "backend/app/services/postgres_storage.py",
     "backend/app/services/quotas.py",
     "backend/app/services/otlp.py",
@@ -30,6 +31,7 @@ CRITICAL_ASSETS = (
     "backend/tests/test_v1416_postgres_integration.py",
     "backend/tests/test_v1417_redis_quota_integration.py",
     "backend/tests/test_v1418_otel_hardening.py",
+    "backend/tests/test_v1419_benchmark_reporting.py",
     "docs/adr/ADR-007-v141-production-persistence.md",
     "docs/adr/ADR-012-v1418-otel-production-hardening.md",
     "docs/JUDGE_RUNBOOK.md",
@@ -65,7 +67,7 @@ def build_manifest() -> dict:
         assets.append({"path": relative, "sha256": _sha256(path), "size_bytes": path.stat().st_size})
 
     return {
-        "schema": "trustkernel.submission-manifest.v5",
+        "schema": "trustkernel.submission-manifest.v6",
         "version": version,
         "algorithm": "sha256",
         "complete": not missing,

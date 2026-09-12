@@ -10,9 +10,10 @@ def test_benchmark_bridge_reports_security_and_utility():
         {"id": "benign-1", "kind": "benign", "plan": benign, "expected_decisions": ["ALLOW", "ALLOW_WITH_LOG"]},
     ])
 
-    assert report["schema"] == "trustkernel.benchmark.v2"
+    assert report["schema"] == "trustkernel.benchmark.v3"
     assert report["security"]["attack_cases"] == 1
     assert report["security"]["attack_block_rate"] == 1.0
     assert report["utility"]["benign_cases"] == 1
     assert report["utility"]["benign_completion_rate"] == 1.0
     assert report["expected_outcome_rate"] == 1.0
+    assert report["agentdojo_alignment"]["native_metrics_inferred"] is False
