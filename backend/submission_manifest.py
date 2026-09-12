@@ -21,6 +21,7 @@ CRITICAL_ASSETS = (
     "backend/app/bootstrap.py",
     "backend/app/v14_api.py",
     "backend/app/benchmarks/adapter.py",
+    "backend/app/services/http_security.py",
     "backend/app/services/postgres_storage.py",
     "backend/app/services/quotas.py",
     "backend/app/services/replay.py",
@@ -41,10 +42,12 @@ CRITICAL_ASSETS = (
     "backend/tests/test_v1422_sdk_packaging.py",
     "backend/tests/test_v1423_pitch_assets.py",
     "backend/tests/test_v1424_replay_protection.py",
+    "backend/tests/test_v1425_http_boundary.py",
     "docs/adr/ADR-007-v141-production-persistence.md",
     "docs/adr/ADR-012-v1418-otel-production-hardening.md",
     "docs/adr/ADR-013-v1421-workload-envelope-verification.md",
     "docs/adr/ADR-014-v1424-distributed-replay-protection.md",
+    "docs/adr/ADR-015-v1425-trusted-host-boundary.md",
     "docs/JUDGE_RUNBOOK.md",
     "docs/JUDGE_CHEATSHEET.md",
     "docs/JUDGE_ARCHITECTURE.md",
@@ -79,7 +82,7 @@ def build_manifest() -> dict:
         assets.append({"path": relative, "sha256": _sha256(path), "size_bytes": path.stat().st_size})
 
     return {
-        "schema": "trustkernel.submission-manifest.v11",
+        "schema": "trustkernel.submission-manifest.v12",
         "version": version,
         "algorithm": "sha256",
         "complete": not missing,
