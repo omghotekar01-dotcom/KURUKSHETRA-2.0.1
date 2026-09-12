@@ -1,7 +1,7 @@
 # TrustKernel
 
 **Runtime Security & Authorization Control Plane for Autonomous AI Agents**  
-Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.11
+Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.12
 
 TrustKernel sits on the execution path between autonomous AI agents and their tools. It evaluates identity, workspace scope, intent, tool provenance, information-flow labels, policy, risk and consequences **before execution**, then returns one of five deterministic outcomes:
 
@@ -29,6 +29,7 @@ It is not positioned as a prompt filter. TrustKernel is a runtime authorization,
 - Six-scenario Judge Mode
 - Non-root Docker runtime, production Compose profile and machine-checkable deployment-readiness gate
 - Unified fail-closed judge rehearsal, release-integrity gate, guarded offline demo reseed and startup diagnostics
+- Deterministic SHA-256 submission manifest for byte-level identity of critical release assets
 
 ## One-command judge startup
 
@@ -62,6 +63,15 @@ python rehearsal.py
 
 This coordinates startup diagnostics, release/submission integrity, the full pytest suite, deterministic benchmark regression checks, Judge Mode and audit-chain verification. Production-profile configuration additionally runs `deployment_check.py` in CI.
 
+To print a deterministic machine-readable manifest of submission-critical assets:
+
+```bash
+cd backend
+python submission_manifest.py
+```
+
+The manifest records the canonical version, file sizes and SHA-256 digests for critical release assets. It proves byte-level identity for those listed files only; it is not a security certification.
+
 ## Manual development run
 
 ```bash
@@ -80,6 +90,7 @@ uvicorn app.bootstrap:app --reload
 cd backend
 pytest -q
 python release_check.py
+python submission_manifest.py
 python benchmark.py
 python judge_check.py
 python rehearsal.py

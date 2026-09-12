@@ -5,6 +5,8 @@ import re
 import tomllib
 from pathlib import Path
 
+import submission_manifest
+
 ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_ASSETS = (
@@ -20,6 +22,7 @@ REQUIRED_ASSETS = (
     "docs/EVALUATION.md",
     "examples/sdk_guard_quickstart.py",
     "sdk/pyproject.toml",
+    "backend/submission_manifest.py",
 )
 
 CLAIMS_DISCIPLINE_FRAGMENT = "not** production security accuracy"
@@ -94,9 +97,18 @@ def run() -> dict:
         "missing_secret_guards": missing_secret_guards,
     })
 
+    manifest = submission_manifest.build_manifest()
+    checks.append({
+        "name": "submission_manifest",
+        "passed": manifest["complete"] and manifest["version"] == version,
+        "asset_count": len(manifest["assets"]),
+        "missing": manifest["missing"],
+        "algorithm": manifest["algorithm"],
+    })
+
     passed = all(check["passed"] for check in checks)
     return {
-        "schema": "trustkernel.release-check.v1",
+        "schema": "trustkernel.release-check.v2",
         "version": version or None,
         "passed": passed,
         "status": "release-ready" if passed else "blocked",
