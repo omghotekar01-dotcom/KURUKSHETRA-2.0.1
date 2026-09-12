@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 from typing import Dict, Any
 
-from .http_security import host_header_restricted
+from .http_security import cors_origin_restricted, cors_origins_https, host_header_restricted
 
 DEFAULT_SECRETS = {
     "TRUSTKERNEL_SESSION_SIGNING_KEY": "trustkernel-dev-session-key",
@@ -30,6 +30,8 @@ def security_posture() -> Dict[str, Any]:
     four_eyes = os.getenv("TRUSTKERNEL_POLICY_FOUR_EYES", "1") == "1"
     evidence_key_explicit = bool(os.getenv("TRUSTKERNEL_EVIDENCE_SIGNING_KEY"))
     hosts_restricted = host_header_restricted()
+    cors_restricted = cors_origin_restricted()
+    cors_https = cors_origins_https()
 
     if production and weak:
         errors.append("Production profile cannot use development signing keys")
@@ -43,8 +45,10 @@ def security_posture() -> Dict[str, Any]:
         (errors if production else warnings).append("Direct policy activation remains enabled")
     if not four_eyes:
         (errors if production else warnings).append("Four-eyes policy governance is disabled")
-    if os.getenv("TRUSTKERNEL_CORS_ORIGINS", "*") == "*":
-        (errors if production else warnings).append("CORS allows all origins")
+    if not cors_restricted:
+        (errors if production else warnings).append("CORS origins are wildcarded or malformed")
+    if production and not cors_https:
+        errors.append("Production CORS origins must use explicit HTTPS origins")
     if not hosts_restricted:
         (errors if production else warnings).append("Host header allow-list is not restricted")
     if not oidc_configured:
@@ -65,6 +69,8 @@ def security_posture() -> Dict[str, Any]:
             "legacy_actor_header_disabled": os.getenv("TRUSTKERNEL_ALLOW_LEGACY_ACTOR_HEADER", "1") != "1",
             "policy_change_approval_required": os.getenv("TRUSTKERNEL_REQUIRE_POLICY_APPROVAL", "0") == "1",
             "policy_four_eyes": four_eyes,
+            "cors_origin_restricted": cors_restricted,
+            "cors_https_only": cors_https,
             "host_header_restricted": hosts_restricted,
             "external_oidc_configured": oidc_configured,
             "oidc_https_required": oidc_https,
