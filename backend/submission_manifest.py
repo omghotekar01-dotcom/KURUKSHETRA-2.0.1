@@ -20,6 +20,7 @@ CRITICAL_ASSETS = (
     "backend/app/bootstrap.py",
     "backend/app/services/postgres_storage.py",
     "backend/app/services/quotas.py",
+    "backend/app/services/otlp.py",
     "backend/app/services/deployment_readiness.py",
     "backend/requirements.txt",
     "backend/supply_chain_check.py",
@@ -28,7 +29,9 @@ CRITICAL_ASSETS = (
     "backend/deployment_check.py",
     "backend/tests/test_v1416_postgres_integration.py",
     "backend/tests/test_v1417_redis_quota_integration.py",
+    "backend/tests/test_v1418_otel_hardening.py",
     "docs/adr/ADR-007-v141-production-persistence.md",
+    "docs/adr/ADR-012-v1418-otel-production-hardening.md",
     "docs/JUDGE_RUNBOOK.md",
     "docs/JUDGE_CHEATSHEET.md",
     "docs/JUDGE_ARCHITECTURE.md",
@@ -61,7 +64,7 @@ def build_manifest() -> dict:
         assets.append({"path": relative, "sha256": _sha256(path), "size_bytes": path.stat().st_size})
 
     return {
-        "schema": "trustkernel.submission-manifest.v4",
+        "schema": "trustkernel.submission-manifest.v5",
         "version": version,
         "algorithm": "sha256",
         "complete": not missing,
