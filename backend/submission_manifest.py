@@ -14,6 +14,8 @@ CRITICAL_ASSETS = (
     "Dockerfile",
     "docker-compose.production.yml",
     ".github/workflows/supply-chain.yml",
+    "frontend/index.html",
+    "backend/app/bootstrap.py",
     "backend/requirements.txt",
     "backend/supply_chain_check.py",
     "backend/rehearsal.py",
@@ -57,7 +59,7 @@ def build_manifest() -> dict:
         )
 
     return {
-        "schema": "trustkernel.submission-manifest.v1",
+        "schema": "trustkernel.submission-manifest.v2",
         "version": version,
         "algorithm": "sha256",
         "complete": not missing,

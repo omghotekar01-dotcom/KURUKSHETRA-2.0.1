@@ -1,7 +1,7 @@
 # TrustKernel
 
 **Runtime Security & Authorization Control Plane for Autonomous AI Agents**  
-Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.13
+Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.14
 
 TrustKernel sits on the execution path between autonomous AI agents and their tools. It evaluates identity, workspace scope, intent, tool provenance, information-flow labels, policy, risk and consequences **before execution**, then returns one of five deterministic outcomes:
 
@@ -31,6 +31,7 @@ It is not positioned as a prompt filter. TrustKernel is a runtime authorization,
 - Unified fail-closed judge rehearsal, release-integrity gate, guarded offline demo reseed and startup diagnostics
 - Deterministic SHA-256 submission manifest for byte-level identity of critical release assets
 - Supply-chain assurance with exact direct-dependency pins, blocking CI vulnerability auditing, CycloneDX SBOM evidence, and supplementary GitHub dependency review when the repository Dependency graph feature is available
+- Canonical release-version binding from the repository `VERSION` file into FastAPI runtime metadata, with release-gate protection against stale runtime or judge-UI version literals
 
 ## One-command judge startup
 
@@ -72,6 +73,8 @@ python submission_manifest.py
 ```
 
 The manifest records the canonical version, file sizes and SHA-256 digests for critical release assets. It proves byte-level identity for those listed files only; it is not a security certification.
+
+The running API exposes the same canonical release version at `GET /api/version`; FastAPI metadata is bound to that value by `app.bootstrap` instead of an independently hard-coded release string.
 
 ## Manual development run
 
