@@ -4,6 +4,8 @@ from dataclasses import asdict, dataclass
 from typing import Mapping
 from urllib.parse import urlparse
 
+from .http_security import host_header_restricted
+
 
 _TRUE = {"1", "true", "yes", "on"}
 _WEAK_MARKERS = ("change-me", "dev-only", "trustkernel-dev", "example", "password")
@@ -62,6 +64,11 @@ def assess_production_readiness(env: Mapping[str, str]) -> ReadinessReport:
 
     cors = env.get("TRUSTKERNEL_CORS_ORIGINS", "").strip()
     add("cors-restricted", bool(cors) and cors != "*" and "*" not in {part.strip() for part in cors.split(",")}, "CORS origins must be an explicit allow-list, never wildcard.")
+    add(
+        "host-header-restricted",
+        host_header_restricted(env),
+        "TRUSTKERNEL_ALLOWED_HOSTS must be an explicit Host-header allow-list with no wildcard in production.",
+    )
 
     for key in ("TRUSTKERNEL_SESSION_SIGNING_KEY", "TRUSTKERNEL_A2A_SIGNING_KEY", "TRUSTKERNEL_POLICY_SIGNING_KEY", "TRUSTKERNEL_EVIDENCE_SIGNING_KEY"):
         add(f"secret:{key}", _strong_secret(env.get(key, "")), f"{key} must be rotated, non-placeholder, and at least 32 characters.")
