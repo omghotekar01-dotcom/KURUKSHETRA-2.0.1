@@ -81,6 +81,11 @@ jobs:
       - name: Run submission manifest regressions
         working-directory: backend
         run: pytest -q tests/test_submission_manifest.py
+      - name: Run full backend regression suite
+        working-directory: backend
+        env:
+          TRUSTKERNEL_ENV: development
+        run: pytest -q
       - name: Run unified judge rehearsal gate
         working-directory: backend
         env:
