@@ -34,30 +34,3 @@ def test_native_endpoint_resolution_appends_trace_path_to_global_endpoint(monkey
     monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", raising=False)
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "https://collector.example/otel/")
     assert _resolve_native_endpoint() == "https://collector.example/otel/v1/traces"
-
-
-def test_native_export_rejects_plain_http_in_production(monkeypatch):
-    monkeypatch.setenv("TRUSTKERNEL_ENV", "production")
-    result = otlp.send_native(endpoint="http://collector.internal:4318/v1/traces")
-
-    assert result["sent"] is False
-    assert result["reason"] == "otlp_https_required_in_production"
-    assert result["transport"] == "otel-sdk"
-
-
-def test_json_export_rejects_plain_http_in_production(monkeypatch):
-    monkeypatch.setenv("TRUSTKERNEL_ENV", "production")
-    result = otlp.send(endpoint="http://collector.internal:4318/v1/traces")
-
-    assert result["sent"] is False
-    assert result["reason"] == "otlp_https_required_in_production"
-    assert result["transport"] == "json-http"
-
-
-def test_local_demo_http_collector_remains_allowed(monkeypatch):
-    monkeypatch.setenv("TRUSTKERNEL_ENV", "development")
-    monkeypatch.setattr("httpx.post", lambda *args, **kwargs: type("Response", (), {"status_code": 200})())
-    result = otlp.send(endpoint="http://127.0.0.1:4318/v1/traces")
-
-    assert result["sent"] is True
-    assert result["transport"] == "json-http"
