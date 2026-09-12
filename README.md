@@ -1,7 +1,7 @@
 # TrustKernel
 
 **Runtime Security & Authorization Control Plane for Autonomous AI Agents**  
-Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.20
+Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.21
 
 TrustKernel sits on the execution path between autonomous AI agents and their tools. It evaluates identity, workspace scope, intent, tool provenance, information-flow labels, policy, risk and consequences **before execution**, returning deterministic `ALLOW`, `ALLOW_WITH_LOG`, `REWRITE`, `REQUIRE_APPROVAL`, or `BLOCK` outcomes.
 
@@ -9,7 +9,7 @@ TrustKernel sits on the execution path between autonomous AI agents and their to
 
 - Standards-based OIDC/JWT identity, signed sessions, workspace RBAC and configurable external-role mapping.
 - Governed policy and MCP registry changes with four-eyes approval and signed evidence envelopes.
-- Workload attestation metadata plus KMS/HSM/SPIFFE-style signing adapters.
+- Workload attestation metadata plus KMS/HSM/SPIFFE-style signing **and verification** adapters. Workload signature envelope v2 binds purpose, time window, nonce, message/attestation digests, external key reference and algorithm; envelope lifetime is bounded and verification fails closed on tampering, expiry, identity mismatch or replay-context rejection.
 - Runtime action graph, taint/provenance tracking, deterministic policy/risk evaluation, safe-plan repair, incidents and audit evidence.
 - SQLite offline mode plus PostgreSQL persistence with checksum-pinned migrations, advisory-lock coordination and live PostgreSQL CI.
 - **First-party Redis distributed quota backend** using atomic Lua read/decide/write, Redis server time, cluster-safe workspace keys, bounded client timeouts and fail-closed startup. In-memory quota enforcement remains the offline/demo default.
