@@ -22,7 +22,7 @@ classifiers = [
 [project.optional-dependencies]
 dev = [
   "build>=1.2,<2",
-  "twine>=6,<7",
+  "twine>=7,<8",
 ]
 
 [project.urls]
