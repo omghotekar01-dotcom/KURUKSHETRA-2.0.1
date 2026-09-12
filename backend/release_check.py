@@ -13,11 +13,13 @@ ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_ASSETS = (
     "README.md", "VERSION", ".env.example", "start.bat", "start.sh",
     "docker-compose.production.yml", ".github/workflows/ci.yml", ".github/workflows/supply-chain.yml",
-    "frontend/index.html", "backend/app/bootstrap.py", "backend/app/services/postgres_storage.py",
-    "backend/app/services/quotas.py", "backend/app/services/otlp.py", "backend/app/services/deployment_readiness.py",
+    "frontend/index.html", "backend/app/bootstrap.py", "backend/app/v14_api.py",
+    "backend/app/services/postgres_storage.py", "backend/app/services/quotas.py", "backend/app/services/otlp.py",
+    "backend/app/services/workload_attestation.py", "backend/app/services/deployment_readiness.py",
     "backend/tests/test_v1416_postgres_integration.py", "backend/tests/test_v1417_redis_quota_integration.py",
-    "backend/tests/test_v1418_otel_hardening.py", "docs/adr/ADR-007-v141-production-persistence.md",
-    "docs/adr/ADR-012-v1418-otel-production-hardening.md", "docs/JUDGE_RUNBOOK.md", "docs/JUDGE_CHEATSHEET.md",
+    "backend/tests/test_v1418_otel_hardening.py", "backend/tests/test_v142_workload_attestation.py",
+    "docs/adr/ADR-007-v141-production-persistence.md", "docs/adr/ADR-012-v1418-otel-production-hardening.md",
+    "docs/adr/ADR-013-v1421-workload-envelope-verification.md", "docs/JUDGE_RUNBOOK.md", "docs/JUDGE_CHEATSHEET.md",
     "docs/JUDGE_ARCHITECTURE.md", "docs/HACKATHON_PITCH.md", "docs/EVALUATION.md",
     "examples/sdk_guard_quickstart.py", "sdk/README.md", "sdk/pyproject.toml", "backend/submission_manifest.py",
     "backend/supply_chain_check.py",
@@ -74,6 +76,16 @@ REQUIRED_OTEL_READINESS_MARKERS = (
     '"native-otel-export-configured"', '"otel-export-https"',
     "not otlp_endpoint or _https_url(otlp_endpoint)",
 )
+REQUIRED_WORKLOAD_ENVELOPE_MARKERS = (
+    "class WorkloadVerifier", "class CallbackVerifier", '"trustkernel.workload-signature.v2"',
+    '"expires_at": expires_at', '"nonce": nonce', '"key_reference": key_reference', '"algorithm": algorithm',
+    "_MAX_ENVELOPE_TTL_SECONDS = 300", "verify_attested_signature_envelope",
+)
+REQUIRED_WORKLOAD_TEST_MARKERS = (
+    "test_v2_envelope_verifies_and_binds_security_metadata",
+    "test_v2_envelope_expiry_message_digest_and_nonce_fail_closed",
+    "test_v2_envelope_ttl_is_bounded",
+)
 
 
 def _read(path: str) -> str:
@@ -105,11 +117,17 @@ def run() -> dict:
     checks.append({"name": "version_coherence", "passed": bool(version) and len(set(versions.values())) == 1, "versions": versions})
 
     bootstrap = _read("backend/app/bootstrap.py") if (ROOT / "backend/app/bootstrap.py").is_file() else ""
+    v14_api = _read("backend/app/v14_api.py") if (ROOT / "backend/app/v14_api.py").is_file() else ""
     frontend = _read("frontend/index.html") if (ROOT / "frontend/index.html").is_file() else ""
     hardcoded_runtime_versions = re.findall(r'(?:main_module\.VERSION|app\.version)\s*=\s*["\']\d+\.\d+\.\d+["\']', bootstrap)
     hardcoded_ui_versions = re.findall(r"TRUSTKERNEL\s+v\d+\.\d+\.\d+", frontend, flags=re.IGNORECASE)
-    runtime_binding_ok = all(marker in bootstrap for marker in ('ROOT / "VERSION"', "main_module.VERSION = VERSION", "app.version = VERSION", '@app.get("/api/version"'))
-    checks.append({"name": "runtime_version_binding", "passed": runtime_binding_ok and not hardcoded_runtime_versions and not hardcoded_ui_versions, "hardcoded_runtime_versions": hardcoded_runtime_versions, "hardcoded_ui_versions": hardcoded_ui_versions})
+    hardcoded_v14_capability_versions = re.findall(r'"version"\s*:\s*"\d+\.\d+\.\d+"', v14_api)
+    runtime_binding_ok = all(
+        marker in bootstrap
+        for marker in ('ROOT / "VERSION"', "main_module.VERSION = VERSION", "app.version = VERSION", '@app.get("/api/version"')
+    )
+    v14_binding_ok = all(marker in v14_api for marker in ('ROOT / "VERSION"', "RELEASE_VERSION", '"version": RELEASE_VERSION'))
+    checks.append({"name": "runtime_version_binding", "passed": runtime_binding_ok and v14_binding_ok and not hardcoded_runtime_versions and not hardcoded_ui_versions and not hardcoded_v14_capability_versions, "hardcoded_runtime_versions": hardcoded_runtime_versions, "hardcoded_ui_versions": hardcoded_ui_versions, "hardcoded_v14_capability_versions": hardcoded_v14_capability_versions})
 
     checks.append({"name": "claims_discipline", "passed": CLAIMS_DISCIPLINE_FRAGMENT in readme, "detail": "README explicitly distinguishes regression/evaluation evidence from production security accuracy."})
 
@@ -121,6 +139,8 @@ def run() -> dict:
     postgres_storage = _read("backend/app/services/postgres_storage.py") if (ROOT / "backend/app/services/postgres_storage.py").is_file() else ""
     quota_service = _read("backend/app/services/quotas.py") if (ROOT / "backend/app/services/quotas.py").is_file() else ""
     otlp_service = _read("backend/app/services/otlp.py") if (ROOT / "backend/app/services/otlp.py").is_file() else ""
+    workload_service = _read("backend/app/services/workload_attestation.py") if (ROOT / "backend/app/services/workload_attestation.py").is_file() else ""
+    workload_tests = _read("backend/tests/test_v142_workload_attestation.py") if (ROOT / "backend/tests/test_v142_workload_attestation.py").is_file() else ""
     readiness_service = _read("backend/app/services/deployment_readiness.py") if (ROOT / "backend/app/services/deployment_readiness.py").is_file() else ""
     ci_workflow = _read(".github/workflows/ci.yml") if (ROOT / ".github/workflows/ci.yml").is_file() else ""
     missing_migration_markers = [marker for marker in REQUIRED_POSTGRES_MIGRATION_MARKERS if marker not in postgres_storage]
@@ -151,6 +171,16 @@ def run() -> dict:
         "detail": "OTLP telemetry binds service.version to VERSION, follows standard endpoint precedence and fails closed on plaintext production export.",
     })
 
+    missing_workload_markers = [marker for marker in REQUIRED_WORKLOAD_ENVELOPE_MARKERS if marker not in workload_service]
+    missing_workload_test_markers = [marker for marker in REQUIRED_WORKLOAD_TEST_MARKERS if marker not in workload_tests]
+    checks.append({
+        "name": "workload_signature_envelope_hardening",
+        "passed": not missing_workload_markers and not missing_workload_test_markers,
+        "missing_backend_markers": missing_workload_markers,
+        "missing_test_markers": missing_workload_test_markers,
+        "detail": "Workload signature v2 binds key reference and algorithm, carries bounded expiry and nonce context, and exposes a provider-neutral verification adapter.",
+    })
+
     supply_chain = supply_chain_check.run()
     checks.append({"name": "supply_chain_declarations", "passed": supply_chain["passed"], "requirements_sha256": supply_chain["sha256"], "direct_component_count": supply_chain["direct_component_count"], "violations": supply_chain["violations"]})
 
@@ -163,12 +193,12 @@ def run() -> dict:
 
     passed = all(check["passed"] for check in checks)
     return {
-        "schema": "trustkernel.release-check.v8",
+        "schema": "trustkernel.release-check.v9",
         "version": version or None,
         "passed": passed,
         "status": "release-ready" if passed else "blocked",
         "checks": checks,
-        "evidence_note": "This gate checks release consistency, runtime version binding, PostgreSQL migration coordination, Redis distributed quota declarations/live CI coverage, OTLP runtime/transport posture, dependency declaration hygiene, configured artifact-attestation posture and submission integrity. These checks are not a security certification.",
+        "evidence_note": "This gate checks release consistency, runtime version binding, PostgreSQL migration coordination, Redis distributed quota declarations/live CI coverage, OTLP runtime/transport posture, workload signature envelope binding/lifetime verification, dependency declaration hygiene, configured artifact-attestation posture and submission integrity. These checks are not a security certification.",
     }
 
 

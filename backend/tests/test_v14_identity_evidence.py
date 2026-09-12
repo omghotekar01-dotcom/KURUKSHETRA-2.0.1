@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 from jwt.algorithms import RSAAlgorithm
 
-from app.bootstrap import app
+from app.bootstrap import VERSION, app
 from app.services.governance_evidence import governance_evidence
 from app.services.oidc import OIDCVerifier
 from app.services.policies import load_policy, publish_policy_document
@@ -116,8 +116,12 @@ def test_v14_capabilities_surface():
     response = client.get("/api/v14/capabilities")
     assert response.status_code == 200
     body = response.json()
-    assert body["version"] == "1.4.2"
+    assert body["version"] == VERSION == "1.4.21"
     assert body["identity"]["oidc_discovery"] is True
     assert body["identity"]["workload_attestation_metadata"] is True
     assert body["identity"]["external_signer_adapter"] is True
+    assert body["identity"]["external_verifier_adapter"] is True
+    assert body["identity"]["bounded_workload_signature_lifetime"] is True
+    assert body["identity"]["workload_signature_nonce_binding"] is True
+    assert body["identity"]["workload_signature_key_algorithm_binding"] is True
     assert body["governance"]["portable_signed_evidence"] is True
