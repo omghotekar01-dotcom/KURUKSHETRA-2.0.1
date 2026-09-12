@@ -1,7 +1,7 @@
 # TrustKernel
 
 **Runtime Security & Authorization Control Plane for Autonomous AI Agents**  
-Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.14
+Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.15
 
 TrustKernel sits on the execution path between autonomous AI agents and their tools. It evaluates identity, workspace scope, intent, tool provenance, information-flow labels, policy, risk and consequences **before execution**, then returns one of five deterministic outcomes:
 
@@ -31,6 +31,7 @@ It is not positioned as a prompt filter. TrustKernel is a runtime authorization,
 - Unified fail-closed judge rehearsal, release-integrity gate, guarded offline demo reseed and startup diagnostics
 - Deterministic SHA-256 submission manifest for byte-level identity of critical release assets
 - Supply-chain assurance with exact direct-dependency pins, blocking CI vulnerability auditing, CycloneDX SBOM evidence, and supplementary GitHub dependency review when the repository Dependency graph feature is available
+- GitHub OIDC-backed artifact attestations for the stable `main` submission manifest plus its CycloneDX SBOM relationship, enabling provenance/integrity verification without claiming that provenance itself proves the software is secure
 - Canonical release-version binding from the repository `VERSION` file into FastAPI runtime metadata, with release-gate protection against stale runtime or judge-UI version literals
 
 ## One-command judge startup
@@ -74,6 +75,8 @@ python submission_manifest.py
 
 The manifest records the canonical version, file sizes and SHA-256 digests for critical release assets. It proves byte-level identity for those listed files only; it is not a security certification.
 
+On stable `main` pushes, the supply-chain workflow also submits this manifest to GitHub's artifact-attestation service and binds the generated CycloneDX SBOM to the same subject. Consumers can verify provenance with GitHub's attestation tooling. The attestation establishes origin/integrity claims about the artifact and workflow; it does **not** establish that the software is vulnerability-free or production-secure.
+
 The running API exposes the same canonical release version at `GET /api/version`; FastAPI metadata is bound to that value by `app.bootstrap` instead of an independently hard-coded release string.
 
 ## Manual development run
@@ -107,7 +110,7 @@ Production-profile configurations can additionally run:
 python deployment_check.py
 ```
 
-CI runs the unified rehearsal plus the production deployment-readiness gate before stable checkpoints are merged to `main`. The separate supply-chain workflow also runs blocking `pip-audit` known-vulnerability scanning and emits a CycloneDX JSON SBOM artifact. On pull requests it additionally attempts GitHub's native dependency-review action; that supplementary check requires the repository Dependency graph feature and is non-blocking when GitHub reports the feature unavailable. The offline `supply_chain_check.py` validates declaration hygiene; vulnerability findings come from the CI audit and can change as advisory databases evolve.
+CI runs the unified rehearsal plus the production deployment-readiness gate before stable checkpoints are merged to `main`. The separate supply-chain workflow also runs blocking `pip-audit` known-vulnerability scanning and emits CycloneDX JSON SBOM + submission-manifest build evidence. On stable `main` pushes, GitHub OIDC-backed attestations are requested for the submission manifest and its SBOM relationship. On pull requests the workflow additionally attempts GitHub's native dependency-review action; that supplementary check requires the repository Dependency graph feature and is non-blocking when GitHub reports the feature unavailable. The offline `supply_chain_check.py` validates declaration hygiene; vulnerability findings come from the CI audit and can change as advisory databases evolve.
 
 **Claims discipline:** bundled/synthetic/imported benchmark and Judge Mode results are deterministic regression/evaluation evidence. They are **not** production security accuracy, certification, universal exploit coverage, or a guarantee that every real-world attack will be blocked.
 
