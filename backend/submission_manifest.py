@@ -38,6 +38,7 @@ CRITICAL_ASSETS = (
     "docs/HACKATHON_PITCH.md",
     "docs/EVALUATION.md",
     "examples/sdk_guard_quickstart.py",
+    "sdk/README.md",
     "sdk/pyproject.toml",
 )
 
