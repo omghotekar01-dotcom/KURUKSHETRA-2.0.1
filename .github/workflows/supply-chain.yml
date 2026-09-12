@@ -49,8 +49,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Review dependency changes
+      - name: Review dependency changes when GitHub Dependency graph is available
+        continue-on-error: true
         uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
           show-openssf-scorecard: true
+      - name: Explain dependency-review support boundary
+        run: echo "GitHub dependency-review is supplementary and requires the repository Dependency graph feature. Blocking supply-chain enforcement is provided by exact-pin validation and pip-audit in the python-audit job."
