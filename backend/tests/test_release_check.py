@@ -7,8 +7,8 @@ def test_release_check_is_green_for_repository_checkpoint():
     result = release_check.run()
     assert result["passed"] is True
     assert result["status"] == "release-ready"
-    assert result["version"] == "1.4.17"
-    assert result["schema"] == "trustkernel.release-check.v7"
+    assert result["version"] == "1.4.18"
+    assert result["schema"] == "trustkernel.release-check.v8"
     assert all(check["passed"] for check in result["checks"])
 
 
@@ -23,6 +23,7 @@ def test_release_check_reports_expected_gate_names():
         "production_compose_posture",
         "postgres_migration_coordination",
         "redis_distributed_quota",
+        "otel_runtime_hardening",
         "supply_chain_declarations",
         "artifact_attestation_workflow",
         "submission_manifest",
@@ -51,3 +52,12 @@ def test_redis_distributed_quota_gate_is_green():
     assert check["missing_backend_markers"] == []
     assert check["missing_ci_markers"] == []
     assert check["bootstrap_configured"] is True
+
+
+def test_otel_runtime_hardening_gate_is_green():
+    result = release_check.run()
+    check = next(item for item in result["checks"] if item["name"] == "otel_runtime_hardening")
+    assert check["passed"] is True
+    assert check["missing_exporter_markers"] == []
+    assert check["missing_readiness_markers"] == []
+    assert check["hardcoded_versions"] == []
