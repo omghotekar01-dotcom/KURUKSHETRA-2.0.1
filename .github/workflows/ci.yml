@@ -102,6 +102,7 @@ jobs:
           TRUSTKERNEL_REQUIRE_POLICY_APPROVAL: '1'
           TRUSTKERNEL_POLICY_FOUR_EYES: '1'
           TRUSTKERNEL_CORS_ORIGINS: https://console.trustkernel.example
+          TRUSTKERNEL_ALLOWED_HOSTS: api.trustkernel.example
           TRUSTKERNEL_SESSION_SIGNING_KEY: ssssssssssssssssssssssssssssssssssssssssssssssss
           TRUSTKERNEL_A2A_SIGNING_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
           TRUSTKERNEL_POLICY_SIGNING_KEY: pppppppppppppppppppppppppppppppppppppppppppppppp
