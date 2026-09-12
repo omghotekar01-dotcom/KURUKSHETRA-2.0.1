@@ -16,7 +16,7 @@ TrustKernel sits on the execution path between autonomous AI agents and their to
 - Native OpenTelemetry exporter option with canonical runtime version binding, standard OTLP endpoint precedence and HTTPS enforcement for configured production export.
 - **Judge-facing governance review UI** with signed policy-bundle semantic diff triage, security-sensitive change filtering, governance-stage visualization, incident blast-radius metrics, causal action graphs, safe-repair context and remediation/evidence timelines.
 - **AgentDojo-inspired benchmark importer/report v3** with suite/model/attack/defense/task/trace provenance, malformed-record rejection, SHA-256 evidence digests, Wilson confidence intervals, coverage breakdowns, and an explicit boundary preventing TrustKernel decision rates from being mislabeled as native AgentDojo utility or targeted ASR.
-- **Package-validated Python SDK** with PEP 517 wheel/sdist builds, `twine check`, installed-wheel import/version/`py.typed` smoke validation, and guarded execution examples.
+- **Package-validated Python SDK** with PEP 517 wheel/sdist builds, modern Core Metadata validation through Twine 7+, installed-wheel import/version/`py.typed` smoke validation, and guarded execution examples.
 - Non-root container runtime, production deployment-readiness gate, deterministic release manifest, SBOM/vulnerability CI and GitHub provenance attestations.
 - Six-scenario Judge Mode plus a unified rehearsal command.
 
@@ -77,7 +77,7 @@ Release-style package validation:
 
 ```bash
 cd sdk
-python -m pip install "build>=1.2,<2" "twine>=6,<7"
+python -m pip install "build>=1.2,<2" "twine>=7,<8"
 python -m build
 python -m twine check dist/*
 ```
