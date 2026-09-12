@@ -19,6 +19,9 @@ jobs:
       - name: Import OTLP service
         working-directory: backend
         run: python -c "from app.services.otlp import _resolve_native_endpoint; print('import-ok')"
+      - name: Verify canonical OTLP runtime version
+        working-directory: backend
+        run: python -c "from pathlib import Path; from app.services.otlp import _runtime_version; expected=Path('../VERSION').read_text().strip(); assert _runtime_version() == expected"
       - name: Verify signal endpoint precedence
         working-directory: backend
         run: pytest -q tests/test_v1418_otel_hardening.py::test_native_endpoint_resolution_honors_signal_specific_precedence
