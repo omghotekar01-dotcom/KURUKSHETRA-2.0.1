@@ -44,12 +44,14 @@ CRITICAL_ASSETS = (
     "backend/tests/test_v1424_replay_protection.py",
     "backend/tests/test_v1425_http_boundary.py",
     "backend/tests/test_v1426_cors_boundary.py",
+    "backend/tests/test_v1427_hsts_boundary.py",
     "docs/adr/ADR-007-v141-production-persistence.md",
     "docs/adr/ADR-012-v1418-otel-production-hardening.md",
     "docs/adr/ADR-013-v1421-workload-envelope-verification.md",
     "docs/adr/ADR-014-v1424-distributed-replay-protection.md",
     "docs/adr/ADR-015-v1425-trusted-host-boundary.md",
     "docs/adr/ADR-016-v1426-production-cors-boundary.md",
+    "docs/adr/ADR-017-v1427-production-hsts-boundary.md",
     "docs/JUDGE_RUNBOOK.md",
     "docs/JUDGE_CHEATSHEET.md",
     "docs/JUDGE_ARCHITECTURE.md",
@@ -84,7 +86,7 @@ def build_manifest() -> dict:
         assets.append({"path": relative, "sha256": _sha256(path), "size_bytes": path.stat().st_size})
 
     return {
-        "schema": "trustkernel.submission-manifest.v13",
+        "schema": "trustkernel.submission-manifest.v14",
         "version": version,
         "algorithm": "sha256",
         "complete": not missing,

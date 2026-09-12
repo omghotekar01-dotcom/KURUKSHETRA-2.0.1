@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 from typing import Dict, Any
 
-from .http_security import cors_origin_restricted, cors_origins_https, host_header_restricted
+from .http_security import cors_origin_restricted, cors_origins_https, host_header_restricted, hsts_max_age, hsts_production_ready
 
 DEFAULT_SECRETS = {
     "TRUSTKERNEL_SESSION_SIGNING_KEY": "trustkernel-dev-session-key",
@@ -32,6 +32,8 @@ def security_posture() -> Dict[str, Any]:
     hosts_restricted = host_header_restricted()
     cors_restricted = cors_origin_restricted()
     cors_https = cors_origins_https()
+    hsts_age = hsts_max_age()
+    hsts_ready = hsts_production_ready()
 
     if production and weak:
         errors.append("Production profile cannot use development signing keys")
@@ -51,6 +53,8 @@ def security_posture() -> Dict[str, Any]:
         errors.append("Production CORS origins must use explicit HTTPS origins")
     if not hosts_restricted:
         (errors if production else warnings).append("Host header allow-list is not restricted")
+    if production and not hsts_ready:
+        errors.append("Production HSTS max-age must be at least 31536000 seconds")
     if not oidc_configured:
         warnings.append("External OIDC identity provider is not configured; local signed sessions remain active")
     if production and oidc_configured and not oidc_https:
@@ -72,6 +76,10 @@ def security_posture() -> Dict[str, Any]:
             "cors_origin_restricted": cors_restricted,
             "cors_https_only": cors_https,
             "host_header_restricted": hosts_restricted,
+            "hsts_long_lived": hsts_ready,
+            "hsts_max_age_seconds": hsts_age,
+            "hsts_include_subdomains": os.getenv("TRUSTKERNEL_HSTS_INCLUDE_SUBDOMAINS", "0").strip().lower() in {"1", "true", "yes", "on"},
+            "hsts_preload_automatic": False,
             "external_oidc_configured": oidc_configured,
             "oidc_https_required": oidc_https,
             "governance_evidence_signing_configured": evidence_key_explicit,

@@ -16,6 +16,8 @@ def _production_env() -> dict[str, str]:
         "TRUSTKERNEL_POLICY_FOUR_EYES": "1",
         "TRUSTKERNEL_CORS_ORIGINS": "https://console.trustkernel.example",
         "TRUSTKERNEL_ALLOWED_HOSTS": "api.trustkernel.example",
+        "TRUSTKERNEL_HSTS_MAX_AGE": "31536000",
+        "TRUSTKERNEL_HSTS_INCLUDE_SUBDOMAINS": "0",
         "TRUSTKERNEL_SESSION_SIGNING_KEY": "s" * 48,
         "TRUSTKERNEL_A2A_SIGNING_KEY": "a" * 48,
         "TRUSTKERNEL_POLICY_SIGNING_KEY": "p" * 48,
