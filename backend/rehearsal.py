@@ -10,6 +10,7 @@ from pathlib import Path
 from benchmark import run as run_benchmark
 from diagnostics import run as run_diagnostics
 from judge_check import run as run_judge_check
+from release_check import run as run_release_check
 
 ROOT = Path(__file__).resolve().parent
 
@@ -52,12 +53,14 @@ def _benchmark_gate(iterations: int) -> dict:
 def run(*, iterations: int = 3, include_tests: bool = True) -> dict:
     started = time.perf_counter()
     diagnostics = run_diagnostics()
+    release = run_release_check()
     tests = _run_tests() if include_tests else {"passed": True, "skipped": True}
     benchmark = _benchmark_gate(iterations)
     judge = run_judge_check()
 
     gates = {
         "diagnostics": bool(diagnostics.get("passed")),
+        "release_integrity": bool(release.get("passed")),
         "tests": bool(tests.get("passed")),
         "benchmark_regression": bool(benchmark.get("passed")),
         "judge_mode": bool(judge.get("passed")),
@@ -65,11 +68,12 @@ def run(*, iterations: int = 3, include_tests: bool = True) -> dict:
     passed = all(gates.values())
 
     return {
-        "schema": "trustkernel.rehearsal.v1",
+        "schema": "trustkernel.rehearsal.v2",
         "status": "ready" if passed else "failed",
         "passed": passed,
         "gates": gates,
         "diagnostics": diagnostics,
+        "release": release,
         "tests": tests,
         "benchmark": benchmark,
         "judge": judge,
