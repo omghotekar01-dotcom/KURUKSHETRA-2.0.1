@@ -2,6 +2,8 @@ from __future__ import annotations
 import os
 from typing import Dict, Any
 
+from .http_security import host_header_restricted
+
 DEFAULT_SECRETS = {
     "TRUSTKERNEL_SESSION_SIGNING_KEY": "trustkernel-dev-session-key",
     "TRUSTKERNEL_A2A_SIGNING_KEY": "trustkernel-dev-a2a-key",
@@ -27,6 +29,7 @@ def security_posture() -> Dict[str, Any]:
     oidc_https = os.getenv("TRUSTKERNEL_OIDC_REQUIRE_HTTPS", "1") == "1"
     four_eyes = os.getenv("TRUSTKERNEL_POLICY_FOUR_EYES", "1") == "1"
     evidence_key_explicit = bool(os.getenv("TRUSTKERNEL_EVIDENCE_SIGNING_KEY"))
+    hosts_restricted = host_header_restricted()
 
     if production and weak:
         errors.append("Production profile cannot use development signing keys")
@@ -42,6 +45,8 @@ def security_posture() -> Dict[str, Any]:
         (errors if production else warnings).append("Four-eyes policy governance is disabled")
     if os.getenv("TRUSTKERNEL_CORS_ORIGINS", "*") == "*":
         (errors if production else warnings).append("CORS allows all origins")
+    if not hosts_restricted:
+        (errors if production else warnings).append("Host header allow-list is not restricted")
     if not oidc_configured:
         warnings.append("External OIDC identity provider is not configured; local signed sessions remain active")
     if production and oidc_configured and not oidc_https:
@@ -60,6 +65,7 @@ def security_posture() -> Dict[str, Any]:
             "legacy_actor_header_disabled": os.getenv("TRUSTKERNEL_ALLOW_LEGACY_ACTOR_HEADER", "1") != "1",
             "policy_change_approval_required": os.getenv("TRUSTKERNEL_REQUIRE_POLICY_APPROVAL", "0") == "1",
             "policy_four_eyes": four_eyes,
+            "host_header_restricted": hosts_restricted,
             "external_oidc_configured": oidc_configured,
             "oidc_https_required": oidc_https,
             "governance_evidence_signing_configured": evidence_key_explicit,
