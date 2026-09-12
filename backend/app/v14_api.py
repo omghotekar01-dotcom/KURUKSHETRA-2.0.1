@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import APIRouter, Header, HTTPException
 
 from .main import _principal, _workspace_match
@@ -8,13 +10,16 @@ from .services.mcp_governance import mcp_governance
 from .services.oidc import oidc
 from .services.policy_changes import policy_changes
 
+ROOT = Path(__file__).resolve().parents[2]
+RELEASE_VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+
 router = APIRouter(prefix="/api/v14", tags=["TrustKernel v1.4"])
 
 
 @router.get("/capabilities")
 def capabilities():
     return {
-        "version": "1.4.2",
+        "version": RELEASE_VERSION,
         "identity": {
             "oidc_discovery": True,
             "exact_issuer_validation": True,
@@ -23,6 +28,10 @@ def capabilities():
             "configurable_role_claim_mapping": True,
             "workload_attestation_metadata": True,
             "external_signer_adapter": True,
+            "external_verifier_adapter": True,
+            "bounded_workload_signature_lifetime": True,
+            "workload_signature_nonce_binding": True,
+            "workload_signature_key_algorithm_binding": True,
             "spiffe_style_identity_metadata": True,
             "kms_hsm_private_key_custody": True,
         },
