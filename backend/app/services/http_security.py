@@ -35,6 +35,12 @@ def _valid_origin(origin: str, require_https: bool) -> bool:
         return False
     if not parsed.netloc or parsed.username or parsed.password:
         return False
+    if not parsed.hostname or "*" in parsed.hostname:
+        return False
+    try:
+        _ = parsed.port
+    except ValueError:
+        return False
     if parsed.path not in ("", "/") or parsed.params or parsed.query or parsed.fragment:
         return False
     return True
