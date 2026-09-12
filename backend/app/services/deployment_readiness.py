@@ -41,6 +41,13 @@ def _https_url(value: str) -> bool:
     return parsed.scheme == "https" and bool(parsed.netloc)
 
 
+def _otel_endpoint(env: Mapping[str, str]) -> str:
+    traces = env.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "").strip()
+    if traces:
+        return traces
+    return env.get("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip()
+
+
 def assess_production_readiness(env: Mapping[str, str]) -> ReadinessReport:
     checks: list[ReadinessCheck] = []
 
@@ -74,8 +81,13 @@ def assess_production_readiness(env: Mapping[str, str]) -> ReadinessReport:
     add("distributed-quota-backend", quota_backend == "redis", "Production profile must use the Redis distributed quota backend so replicas share one enforcement state.")
     add("redis-quota-tls", redis_url.startswith("rediss://"), "Production Redis quota transport must use TLS via a rediss:// URL.")
 
-    otlp_endpoint = env.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "").strip()
+    otlp_endpoint = _otel_endpoint(env)
     add("native-otel-export-configured", bool(otlp_endpoint), "Configure the native OpenTelemetry trace exporter for production observability.", severity="warning")
+    add(
+        "otel-export-https",
+        not otlp_endpoint or _https_url(otlp_endpoint),
+        "When OTLP export is configured in production, the endpoint must use HTTPS. Plain HTTP remains available only for local/demo collectors.",
+    )
 
     errors = [check for check in checks if check.severity == "error" and not check.passed]
     return ReadinessReport(ready=not errors, checks=tuple(checks))
