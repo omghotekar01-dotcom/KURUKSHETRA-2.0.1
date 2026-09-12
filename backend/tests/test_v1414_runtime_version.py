@@ -12,8 +12,8 @@ def test_runtime_version_is_canonical_release_version():
     body = response.json()
     assert body == {
         "schema": "trustkernel.release-version.v1",
-        "version": "1.4.19",
+        "version": "1.4.20",
         "source": "VERSION",
     }
-    assert VERSION == "1.4.19"
-    assert app.version == "1.4.19"
+    assert VERSION == "1.4.20"
+    assert app.version == "1.4.20"
