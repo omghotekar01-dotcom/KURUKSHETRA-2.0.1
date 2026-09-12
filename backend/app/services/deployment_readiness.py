@@ -81,6 +81,18 @@ def assess_production_readiness(env: Mapping[str, str]) -> ReadinessReport:
     add("distributed-quota-backend", quota_backend == "redis", "Production profile must use the Redis distributed quota backend so replicas share one enforcement state.")
     add("redis-quota-tls", redis_url.startswith("rediss://"), "Production Redis quota transport must use TLS via a rediss:// URL.")
 
+    replay_backend = env.get("TRUSTKERNEL_REPLAY_BACKEND", "memory").strip().lower()
+    add(
+        "distributed-replay-backend",
+        replay_backend == "redis",
+        "Production profile must use the Redis distributed replay guard so signed workload envelope nonces are single-use across replicas.",
+    )
+    add(
+        "redis-replay-tls",
+        replay_backend != "redis" or redis_url.startswith("rediss://"),
+        "Production Redis replay-state transport must use TLS via the shared rediss:// TRUSTKERNEL_REDIS_URL.",
+    )
+
     otlp_endpoint = _otel_endpoint(env)
     add("native-otel-export-configured", bool(otlp_endpoint), "Configure the native OpenTelemetry trace exporter for production observability.", severity="warning")
     add(
