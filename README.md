@@ -1,7 +1,7 @@
 # TrustKernel
 
 **Runtime Security & Authorization Control Plane for Autonomous AI Agents**  
-Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.19
+Kurukshetra 2.0 · Open Innovation backup project · Startup MVP v1.4.20
 
 TrustKernel sits on the execution path between autonomous AI agents and their tools. It evaluates identity, workspace scope, intent, tool provenance, information-flow labels, policy, risk and consequences **before execution**, returning deterministic `ALLOW`, `ALLOW_WITH_LOG`, `REWRITE`, `REQUIRE_APPROVAL`, or `BLOCK` outcomes.
 
@@ -13,7 +13,8 @@ TrustKernel sits on the execution path between autonomous AI agents and their to
 - Runtime action graph, taint/provenance tracking, deterministic policy/risk evaluation, safe-plan repair, incidents and audit evidence.
 - SQLite offline mode plus PostgreSQL persistence with checksum-pinned migrations, advisory-lock coordination and live PostgreSQL CI.
 - **First-party Redis distributed quota backend** using atomic Lua read/decide/write, Redis server time, cluster-safe workspace keys, bounded client timeouts and fail-closed startup. In-memory quota enforcement remains the offline/demo default.
-- Native OpenTelemetry exporter option with canonical runtime version binding, standard OTLP endpoint precedence and HTTPS enforcement for configured production export; visual Policy Studio and incident causal explorer.
+- Native OpenTelemetry exporter option with canonical runtime version binding, standard OTLP endpoint precedence and HTTPS enforcement for configured production export.
+- **Judge-facing governance review UI** with signed policy-bundle semantic diff triage, security-sensitive change filtering, governance-stage visualization, incident blast-radius metrics, causal action graphs, safe-repair context and remediation/evidence timelines.
 - **AgentDojo-inspired benchmark importer/report v3** with suite/model/attack/defense/task/trace provenance, malformed-record rejection, SHA-256 evidence digests, Wilson confidence intervals, coverage breakdowns, and an explicit boundary preventing TrustKernel decision rates from being mislabeled as native AgentDojo utility or targeted ASR.
 - Packageable Python SDK with guarded execution examples.
 - Non-root container runtime, production deployment-readiness gate, deterministic release manifest, SBOM/vulnerability CI and GitHub provenance attestations.
