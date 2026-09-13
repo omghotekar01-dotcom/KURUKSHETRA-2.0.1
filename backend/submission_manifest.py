@@ -28,6 +28,7 @@ CRITICAL_ASSETS = (
     "backend/app/services/replay.py",
     "backend/app/services/otlp.py",
     "backend/app/services/workload_attestation.py",
+    "backend/app/services/kms_signing.py",
     "backend/app/services/deployment_readiness.py",
     "backend/requirements.txt",
     "backend/supply_chain_check.py",
@@ -47,6 +48,7 @@ CRITICAL_ASSETS = (
     "backend/tests/test_v1426_cors_boundary.py",
     "backend/tests/test_v1427_hsts_boundary.py",
     "backend/tests/test_v1428_agentdojo_native.py",
+    "backend/tests/test_v1429_kms_signing.py",
     "docs/adr/ADR-007-v141-production-persistence.md",
     "docs/adr/ADR-012-v1418-otel-production-hardening.md",
     "docs/adr/ADR-013-v1421-workload-envelope-verification.md",
@@ -55,6 +57,7 @@ CRITICAL_ASSETS = (
     "docs/adr/ADR-016-v1426-production-cors-boundary.md",
     "docs/adr/ADR-017-v1427-production-hsts-boundary.md",
     "docs/adr/ADR-018-v1428-agentdojo-native-evidence.md",
+    "docs/adr/ADR-019-v1429-aws-kms-workload-signing.md",
     "docs/JUDGE_RUNBOOK.md",
     "docs/JUDGE_CHEATSHEET.md",
     "docs/JUDGE_ARCHITECTURE.md",
@@ -89,7 +92,7 @@ def build_manifest() -> dict:
         assets.append({"path": relative, "sha256": _sha256(path), "size_bytes": path.stat().st_size})
 
     return {
-        "schema": "trustkernel.submission-manifest.v15",
+        "schema": "trustkernel.submission-manifest.v16",
         "version": version,
         "algorithm": "sha256",
         "complete": not missing,

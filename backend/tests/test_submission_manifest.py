@@ -10,7 +10,7 @@ def test_submission_manifest_is_complete_and_deterministic():
     second = submission_manifest.build_manifest()
 
     assert first == second
-    assert first["schema"] == "trustkernel.submission-manifest.v15"
+    assert first["schema"] == "trustkernel.submission-manifest.v16"
     assert first["version"] == "1.4.22"
     assert first["complete"] is True
     assert first["missing"] == []
@@ -35,6 +35,7 @@ def test_submission_manifest_has_valid_sha256_for_every_asset():
     assert "backend/app/services/replay.py" in actual_paths
     assert "backend/app/services/otlp.py" in actual_paths
     assert "backend/app/services/workload_attestation.py" in actual_paths
+    assert "backend/app/services/kms_signing.py" in actual_paths
     assert "backend/app/services/deployment_readiness.py" in actual_paths
     assert ".github/workflows/ci.yml" in actual_paths
     assert "backend/tests/test_v1416_postgres_integration.py" in actual_paths
@@ -50,6 +51,7 @@ def test_submission_manifest_has_valid_sha256_for_every_asset():
     assert "backend/tests/test_v1426_cors_boundary.py" in actual_paths
     assert "backend/tests/test_v1427_hsts_boundary.py" in actual_paths
     assert "backend/tests/test_v1428_agentdojo_native.py" in actual_paths
+    assert "backend/tests/test_v1429_kms_signing.py" in actual_paths
     assert "docs/adr/ADR-012-v1418-otel-production-hardening.md" in actual_paths
     assert "docs/adr/ADR-013-v1421-workload-envelope-verification.md" in actual_paths
     assert "docs/adr/ADR-014-v1424-distributed-replay-protection.md" in actual_paths
@@ -57,6 +59,7 @@ def test_submission_manifest_has_valid_sha256_for_every_asset():
     assert "docs/adr/ADR-016-v1426-production-cors-boundary.md" in actual_paths
     assert "docs/adr/ADR-017-v1427-production-hsts-boundary.md" in actual_paths
     assert "docs/adr/ADR-018-v1428-agentdojo-native-evidence.md" in actual_paths
+    assert "docs/adr/ADR-019-v1429-aws-kms-workload-signing.md" in actual_paths
     assert "docs/FINAL_PITCH_ASSETS.md" in actual_paths
     for asset in manifest["assets"]:
         assert re.fullmatch(r"[0-9a-f]{64}", asset["sha256"])
