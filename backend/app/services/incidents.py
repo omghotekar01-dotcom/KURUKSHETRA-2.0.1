@@ -23,6 +23,118 @@ _REMEDIATIONS = {
 }
 
 
+def _causal_chain(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Build a deterministic investigation chain from recorded evidence only.
+
+    This is an explanatory projection for operators; it does not infer hidden causes or
+    claim that a finding caused another finding unless that relationship is present in
+    the captured graph patterns.
+    """
+    findings = payload.get("findings", []) or []
+    graph = payload.get("graph_snapshot", {}) or {}
+    patterns = graph.get("patterns", []) or []
+    chain: List[Dict[str, Any]] = []
+
+    if payload.get("agent_id"):
+        chain.append(
+            {
+                "stage": "workload",
+                "label": f"Agent {payload['agent_id']}",
+                "evidence_type": "recorded",
+            }
+        )
+
+    for index, finding in enumerate(findings, start=1):
+        chain.append(
+            {
+                "stage": "finding",
+                "label": finding.get("title") or finding.get("code") or f"Finding {index}",
+                "code": finding.get("code"),
+                "severity": finding.get("severity"),
+                "evidence_type": "recorded",
+            }
+        )
+
+    for index, pattern in enumerate(patterns, start=1):
+        if isinstance(pattern, dict):
+            label = pattern.get("label") or pattern.get("name") or pattern.get("type") or f"Attack path {index}"
+        else:
+            label = str(pattern)
+        chain.append(
+            {
+                "stage": "attack_path",
+                "label": label,
+                "evidence_type": "graph_snapshot",
+            }
+        )
+
+    chain.append(
+        {
+            "stage": "decision",
+            "label": payload.get("decision") or "UNKNOWN",
+            "risk_score": payload.get("risk_score"),
+            "evidence_type": "recorded",
+        }
+    )
+    return chain
+
+
+def _remediation_timeline(item: Dict[str, Any], payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Return an ordered incident timeline while separating facts from recommendations."""
+    timeline: List[Dict[str, Any]] = [
+        {
+            "sequence": 1,
+            "phase": "detect",
+            "state": "recorded",
+            "label": "TrustKernel evaluation created the incident",
+            "timestamp": item.get("created_at"),
+        }
+    ]
+
+    decision = payload.get("decision")
+    if decision in {"BLOCK", "REQUIRE_APPROVAL"}:
+        timeline.append(
+            {
+                "sequence": len(timeline) + 1,
+                "phase": "contain",
+                "state": "recorded",
+                "label": "Execution blocked" if decision == "BLOCK" else "Execution held for approval",
+                "timestamp": item.get("created_at"),
+            }
+        )
+
+    for action in payload.get("action_results", []) or []:
+        timeline.append(
+            {
+                "sequence": len(timeline) + 1,
+                "phase": "action",
+                "state": "recorded",
+                "label": action.get("action") or action.get("name") or action.get("status") or "Recorded action result",
+                "result": action,
+            }
+        )
+
+    for remediation in payload.get("recommended_remediation", []) or []:
+        timeline.append(
+            {
+                "sequence": len(timeline) + 1,
+                "phase": "remediate",
+                "state": "recommended",
+                "label": remediation,
+            }
+        )
+
+    timeline.append(
+        {
+            "sequence": len(timeline) + 1,
+            "phase": "verify",
+            "state": "recommended",
+            "label": "Re-run the affected workflow and confirm policy, identity, provenance, and audit evidence before closure.",
+        }
+    )
+    return timeline
+
+
 class IncidentService:
     def create_from_evaluation(
         self,
@@ -93,6 +205,8 @@ class IncidentService:
             "findings": payload.get("findings", []),
             "attack_paths": graph.get("patterns", []),
             "graph": graph,
+            "causal_chain": _causal_chain(payload),
+            "remediation_timeline": _remediation_timeline(item, payload),
             "recommended_remediation": payload.get("recommended_remediation", []),
             "evidence": {
                 "audit_id": item["audit_id"],
