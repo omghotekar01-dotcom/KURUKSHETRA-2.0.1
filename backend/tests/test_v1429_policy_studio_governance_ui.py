@@ -19,13 +19,14 @@ def test_governance_console_uses_workspace_scoped_policy_change_api():
     assert "out['X-TrustKernel-Actor'] = state.actor" in script
 
 
-def test_governance_console_does_not_persist_credentials():
+def test_governance_console_keeps_credentials_memory_only():
     script = (ROOT / "frontend" / "governance.js").read_text(encoding="utf-8")
     assert 'localStorage' not in script
     assert 'sessionStorage' not in script
     assert 'document.cookie' not in script
-    index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
-    assert 'autocomplete="off"' not in index or True
+    assert 'type="password"' in script
+    assert 'autocomplete="off"' in script
+    assert 'Use a signed member session in production' in script
 
 
 def test_governance_console_surfaces_four_eyes_and_activation_state():
